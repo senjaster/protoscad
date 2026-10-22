@@ -1,5 +1,4 @@
-from ast import List
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Sequence
 
 from manifold_learn.ast.expression import Expression
@@ -7,10 +6,13 @@ from manifold_learn.ast.expression import Expression
 
 @dataclass
 class TreeNode:
-    _parent: TreeNode | None
-    _children: List[TreeNode]
-    _variables: dict[str, Expression]  # Type to be defined
-    _modules: dict[str, Any]
+    module: str  # Module name
+    positional_args: list[Expression]
+    named_args: dict[str, Expression]
+    _parent: TreeNode | None = None
+    _children: list[TreeNode] = field(default_factory=list)
+    _variables: dict[str, Expression] = field(default_factory=dict)  # Type to be defined
+    _modules: dict[str, Any] = field(default_factory=dict)
 
     def assign_variable(self, name: str, expression: Expression):
         self._variables[name] = expression
