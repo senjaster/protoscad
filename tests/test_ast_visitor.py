@@ -3,7 +3,7 @@ from __future__ import annotations
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
-from manifold_learn.ast.expression import BinaryOp, NumberLiteral, Paren, Raw, Variable
+from manifold_learn.ast.expression import ArrayLiteral, BinaryOp, NumberLiteral, Paren, Variable
 from manifold_learn.ast.tree_node import TreeNode
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
@@ -69,7 +69,7 @@ def test_mixed_positional_and_named_args():
     root = parse_scad("cube([10,10,10], center=true);")
     node = single_child(root)
     assert node.module == "cube"
-    assert node.positional_args == [Raw("[10,10,10]")]
+    assert node.positional_args == [ArrayLiteral([NumberLiteral(10.0), NumberLiteral(10.0), NumberLiteral(10.0)])]
     assert node.named_args == {"center": Variable("true")}
 
 
@@ -204,11 +204,22 @@ def test_paren_expression():
     assert expr.left.inner.op == "+"
 
 
-def test_array_literal_is_raw_stub():
+def test_array_literal_builds_list_of_expressions():
     root = parse_scad("cube([12, var2+2, -3.2]);")
     node = single_child(root)
-    # Raw captures the token text; whitespace between tokens is not preserved
-    assert node.positional_args == [Raw("[12,var2+2,-3.2]")]
+    expr = node.positional_args[0]
+    assert isinstance(expr, ArrayLiteral)
+    assert expr.elements == [
+        NumberLiteral(12.0),
+        BinaryOp("+", Variable("var2"), NumberLiteral(2.0)),
+        NumberLiteral(-3.2),
+    ]
+
+
+def test_empty_array_literal():
+    root = parse_scad("cube([]);")
+    node = single_child(root)
+    assert node.positional_args == [ArrayLiteral([])]
 
 
 def test_comments_are_ignored():

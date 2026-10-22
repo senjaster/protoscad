@@ -24,8 +24,17 @@ letBindingList : letBinding
                ;
 letBinding : IDENT EQ expr ;
 
+// Module parameter list, e.g. `module Foo(a, b=2) { ... }`.
+// Each parameter is either a bare name (no default) or a `letBinding`
+// (name with a default value). A bare name is not a valid call argument,
+// so this is separate from argList.
+paramList   : param (',' param)* ;
+param       : IDENT                  # ParamNoDefault
+            | letBinding             # ParamWithDefault
+            ;
+
 // Module definition, e.g. `module SomeName(arg1, arg2=10) { ... }`
-moduleDefinition : 'module' IDENT '(' argList? ')' moduleCallSeq ;
+moduleDefinition : 'module' IDENT '(' paramList? ')' moduleCallSeq ;
 
 // Variable assignment
 assignment  : IDENT EQ expr ';' ;

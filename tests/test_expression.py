@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from manifold_learn.ast.expression import (
+    ArrayLiteral,
     BinaryOp,
     Expression,
     NumberLiteral,
@@ -80,3 +81,15 @@ def test_paren_delegates_to_inner():
 
 def test_raw_returns_text():
     assert Raw("[1, 2, 3]").evaluate(make_node()) == "[1, 2, 3]"
+
+
+def test_array_literal_evaluates_elements():
+    expr = ArrayLiteral([
+        NumberLiteral(1.0),
+        BinaryOp("+", NumberLiteral(2.0), NumberLiteral(3.0)),
+    ])
+    assert expr.evaluate(make_node()) == [1.0, 5.0]
+
+
+def test_array_literal_empty():
+    assert ArrayLiteral([]).evaluate(make_node()) == []

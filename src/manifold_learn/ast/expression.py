@@ -74,10 +74,31 @@ class Paren(Expression):
 
 
 @dataclass
+class ArrayLiteral(Expression):
+    """A list literal, e.g. `[12, var2+2, -3.2]`."""
+
+    elements: list[Expression]
+
+    def evaluate(self, node: "TreeNode") -> list[Any]:
+        return [element.evaluate(node) for element in self.elements]
+
+
+@dataclass
 class Raw(Expression):
-    """Placeholder for expression forms not yet modeled (string, array)."""
+    """Placeholder for expression forms not yet modeled (string)."""
 
     text: str
 
     def evaluate(self, node: "TreeNode") -> Any:
         return self.text
+
+
+@dataclass
+class Undefined(Expression):
+    """The value of a module parameter that has no default and was not bound.
+
+    Evaluating it is a runtime error: a required parameter was never supplied.
+    """
+
+    def evaluate(self, node: "TreeNode") -> Any:
+        raise ValueError("Undefined parameter value")

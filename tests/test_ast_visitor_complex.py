@@ -3,7 +3,7 @@ from __future__ import annotations
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
-from manifold_learn.ast.expression import BinaryOp, NumberLiteral, Paren, Raw, Variable
+from manifold_learn.ast.expression import ArrayLiteral, BinaryOp, NumberLiteral, Paren, Variable
 from manifold_learn.ast.tree_node import TreeNode
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
@@ -98,13 +98,13 @@ def test_chained_scale_translate_box_nesting():
     root = parse_scad(COMPLEX_SOURCE)
     scale = root.children[0]
     assert scale.module == "scale"
-    # Array literal is captured as a Raw stub (whitespace stripped)
-    assert scale.positional_args == [Raw("[1,2,1]")]
+    # Array literal builds a list of element expressions
+    assert scale.positional_args == [ArrayLiteral([NumberLiteral(1.0), NumberLiteral(2.0), NumberLiteral(1.0)])]
 
     translate = scale.children[0]
     assert translate.module == "translate"
-    # The array literal [width, depth, height] is a single Raw stub
-    assert translate.positional_args == [Raw("[width,depth,height]")]
+    # The array literal [width, depth, height] resolves to variables
+    assert translate.positional_args == [ArrayLiteral([Variable("width"), Variable("depth"), Variable("height")])]
 
     # The translate body is a block with box, cylinder, and a nested block.
     block = translate.children[0]
@@ -133,10 +133,10 @@ def test_chained_scale_translate_box_nesting():
     sphere = nested.children[0]
     assert sphere.positional_args == [NumberLiteral(2.0)]
     inner_translate = nested.children[1]
-    assert inner_translate.positional_args == [Raw("[0,0,1]")]
+    assert inner_translate.positional_args == [ArrayLiteral([NumberLiteral(0.0), NumberLiteral(0.0), NumberLiteral(1.0)])]
     cube = inner_translate.children[0]
     assert cube.module == "cube"
-    assert cube.positional_args == [Raw("[1,1,1]")]
+    assert cube.positional_args == [ArrayLiteral([NumberLiteral(1.0), NumberLiteral(1.0), NumberLiteral(1.0)])]
 
 
 def test_let_binding_visible_through_scope_chain():
@@ -151,7 +151,7 @@ def test_let_binding_visible_through_scope_chain():
     assert block.module == "block"
     translate = block.children[0]
     assert translate.module == "translate"
-    assert translate.positional_args == [Raw("[0,0,offset]")]
+    assert translate.positional_args == [ArrayLiteral([NumberLiteral(0.0), NumberLiteral(0.0), Variable("offset")])]
     inner_block = translate.children[0]
     assert inner_block.module == "block"
     box = inner_block.children[0]
@@ -181,7 +181,7 @@ def test_rotate_chain_uses_top_level_variable():
     root = parse_scad(COMPLEX_SOURCE)
     rotate = root.children[2]
     assert rotate.module == "rotate"
-    assert rotate.positional_args == [Raw("[0,0,45]")]
+    assert rotate.positional_args == [ArrayLiteral([NumberLiteral(0.0), NumberLiteral(0.0), NumberLiteral(45.0)])]
     box = rotate.children[0]
     assert box.module == "box"
     # box(width, center=true): width is a Variable reference (resolves to 100)

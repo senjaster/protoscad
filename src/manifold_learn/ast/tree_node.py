@@ -1,19 +1,22 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 from copy import copy
 
 from manifold_learn.ast.expression import Assignment, Expression
+from manifold_learn.ast.module_definition import ModuleDefinition
 
 
 @dataclass
 class TreeNode:
     module: str  # Module name
-    positional_args: list[Expression]
-    named_args: dict[str, Expression]
+    positional_args: list[Expression] = field(default_factory=list)
+    named_args: dict[str, Expression] = field(default_factory=dict)
     _parent: TreeNode | None = None
     _children: list[TreeNode] = field(default_factory=list)
     _variables: dict[str, Assignment] = field(default_factory=dict)  # Type to be defined
-    _modules: dict[str, Any] = field(default_factory=dict)
+    _modules: dict[str, ModuleDefinition] = field(default_factory=dict)
 
     def assign_variable(self, assignment: Assignment):
         self._variables[assignment.name] = assignment
@@ -43,17 +46,17 @@ class TreeNode:
             return self._parent.eval_variable(name)
         return None
 
-    def set_module(self, name: str, value: Any):
+    def set_module(self, name: str, value: ModuleDefinition):
         self._modules[name] = value
 
-    def get_module(self, name: str) -> Any:
+    def get_module(self, name: str) -> ModuleDefinition | None:
         if name in self._modules:
             return self._modules[name]
         else:
             return self._parent.get_module(name) if self._parent else None
 
     @property
-    def parent(self) -> 'TreeNode':
+    def parent(self) -> TreeNode | None:
         return self._parent
 
     @property
@@ -69,3 +72,10 @@ class TreeNode:
         self._children.remove(child)
         child._parent = None
 
+    def make_parameter_scope(self, parameters: dict[str, Assignment]):
+        """Create a new scope with the given parameters.
+
+        Such scopes are used to evaluate the body of a module.
+        """
+        parameters = parameters or {}
+        return TreeNode("scope", _parent=self, _variables=parameters)

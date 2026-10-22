@@ -2,11 +2,13 @@ from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 from manifold_learn.grammar.OpenSCADVisitor import OpenSCADVisitor
 from manifold_learn.ast.tree_node import TreeNode
 from manifold_learn.ast.expression import (
+    ArrayLiteral,
     Assignment,
     BinaryOp,
     NumberLiteral,
     Paren,
     Raw,
+    Undefined,
     Variable,
 )
 from manifold3d import Manifold as m3d
@@ -110,9 +112,27 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
     # Visit a parse tree produced by OpenSCADParser#moduleDefinition.
     def visitModuleDefinition(self, ctx:OpenSCADParser.ModuleDefinitionContext) -> TreeNode:
         node = TreeNode(ctx.IDENT().getText(), positional_args=[], named_args={})
+        if ctx.paramList() is not None:
+            for param in self.visit(ctx.paramList()):
+                node.assign_variable(param)
         body = self.visit(ctx.moduleCallSeq())
         node.add_child(body)
         return node
+
+
+    # Visit a parse tree produced by OpenSCADParser#paramList.
+    def visitParamList(self, ctx:OpenSCADParser.ParamListContext) -> list[Assignment]:
+        return [self.visit(param) for param in ctx.param()]
+
+
+    # Visit a parse tree produced by OpenSCADParser#ParamNoDefault.
+    def visitParamNoDefault(self, ctx:OpenSCADParser.ParamNoDefaultContext) -> Assignment:
+        return Assignment(name=ctx.IDENT().getText(), value=Undefined())
+
+
+    # Visit a parse tree produced by OpenSCADParser#ParamWithDefault.
+    def visitParamWithDefault(self, ctx:OpenSCADParser.ParamWithDefaultContext) -> Assignment:
+        return self.visit(ctx.letBinding())
 
 
     # Visit a parse tree produced by OpenSCADParser#assignment.
@@ -157,8 +177,9 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
 
     # Visit a parse tree produced by OpenSCADParser#ArrayExpr.
-    def visitArrayExpr(self, ctx:OpenSCADParser.ArrayExprContext):
-        return self._expr_stub(ctx)
+    def visitArrayExpr(self, ctx:OpenSCADParser.ArrayExprContext) -> ArrayLiteral:
+        elements = self.visit(ctx.exprList()) if ctx.exprList() is not None else []
+        return ArrayLiteral(elements)
 
 
     # Visit a parse tree produced by OpenSCADParser#NumberExpr.
@@ -186,11 +207,13 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
 
     # Visit a parse tree produced by OpenSCADParser#exprList.
-    def visitExprList(self, ctx:OpenSCADParser.ExprListContext):
-        return self._expr_stub(ctx)
+    def visitExprList(self, ctx:OpenSCADParser.ExprListContext) -> list[Expression]:
+        elements = [self.visit(ctx.expr())]
+        if ctx.exprList() is not None:
+            elements.extend(self.visit(ctx.exprList()))
+        return elements
 
-    # Temporary stand-in for the not-yet-implemented expression forms
-    # (string, array). Captures the raw source text so args/let-bindings
-    # are wired up correctly.
+    # Temporary stand-in for the not-yet-implemented string expression.
+    # Captures the raw source text so args/let-bindings are wired up correctly.
     def _expr_stub(self, ctx):
         return Raw(ctx.getText())

@@ -64,6 +64,21 @@ class OpenSCADVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by OpenSCADParser#paramList.
+    def visitParamList(self, ctx:OpenSCADParser.ParamListContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#ParamNoDefault.
+    def visitParamNoDefault(self, ctx:OpenSCADParser.ParamNoDefaultContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#ParamWithDefault.
+    def visitParamWithDefault(self, ctx:OpenSCADParser.ParamWithDefaultContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by OpenSCADParser#moduleDefinition.
     def visitModuleDefinition(self, ctx:OpenSCADParser.ModuleDefinitionContext):
         return self.visitChildren(ctx)
