@@ -2,6 +2,7 @@ from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 from manifold_learn.grammar.OpenSCADVisitor import OpenSCADVisitor
 from manifold_learn.ast.tree_node import TreeNode
 from manifold_learn.ast.expression import (
+    Assignment,
     BinaryOp,
     NumberLiteral,
     Paren,
@@ -16,15 +17,23 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
     def visitStart(self, ctx:OpenSCADParser.StartContext):
         root = TreeNode("root", positional_args=[], named_args={})
         for statement in ctx.statement():
-            child = self.visit(statement)
-            if child is not None:
-                root.add_child(child)
+            self._register_statement(root, self.visit(statement))
         return root
+
+    def _register_statement(self, scope: TreeNode, result):
+        """Add a visited statement to the scope node.
+
+        An assignment defines a variable on the scope node; any other result
+        is a module-call subtree added as a child.
+        """
+        if isinstance(result, Assignment):
+            scope.assign_variable(result)
+        elif result is not None:
+            scope.add_child(result)
 
 
     # Visit a parse tree produced by OpenSCADParser#statement.
     # def visitStatement(self, ctx:OpenSCADParser.StatementContext):
-        return self.visitChildren(ctx)
     # Это не нужно реализовывать - это просто OR для трех правил
 
 
@@ -32,7 +41,7 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
     #  Группа методов для вызова модулей
 
     # Visit a parse tree produced by OpenSCADParser#ChainedModuleCall.
-    def visitChainedModuleCall(self, ctx:OpenSCADParser.ChainedModuleCallContext):
+    def visitChainedModuleCall(self, ctx:OpenSCADParser.ChainedModuleCallContext) -> TreeNode:
         node = self.visit(ctx.moduleCall())
         child = self.visit(ctx.moduleCallSeq())
         node.add_child(child)
@@ -40,7 +49,7 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
 
     # Visit a parse tree produced by OpenSCADParser#ChainedLetCall.
-    def visitChainedLetCall(self, ctx:OpenSCADParser.ChainedLetCallContext):
+    def visitChainedLetCall(self, ctx:OpenSCADParser.ChainedLetCallContext) -> TreeNode:
         node = self.visit(ctx.letExpr())
         child = self.visit(ctx.moduleCallSeq())
         node.add_child(child)
@@ -48,12 +57,12 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
 
     # Visit a parse tree produced by OpenSCADParser#TerminalModuleCall.
-    def visitTerminalModuleCall(self, ctx:OpenSCADParser.TerminalModuleCallContext):
+    def visitTerminalModuleCall(self, ctx:OpenSCADParser.TerminalModuleCallContext) -> TreeNode:
         return self.visit(ctx.moduleCall())
 
 
     # Visit a parse tree produced by OpenSCADParser#TerminalBlock.
-    def visitTerminalBlock(self, ctx:OpenSCADParser.TerminalBlockContext):
+    def visitTerminalBlock(self, ctx:OpenSCADParser.TerminalBlockContext) -> TreeNode:
         return self.visit(ctx.block())
 
 
@@ -71,44 +80,44 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
     def visitBlock(self, ctx:OpenSCADParser.BlockContext):
         node = TreeNode("block", positional_args=[], named_args={})
         for statement in ctx.statement():
-            child = self.visit(statement)
-            if child is not None:
-                node.add_child(child)
+            self._register_statement(node, self.visit(statement))
         return node
 
 
     # Visit a parse tree produced by OpenSCADParser#letExpr.
     def visitLetExpr(self, ctx:OpenSCADParser.LetExprContext):
         node = TreeNode("let", positional_args=[], named_args={})
-        for name, expr in self.visit(ctx.letBindingList()).items():
-            node.assign_variable(name, expr)
+        for assignment in self.visit(ctx.letBindingList()):
+            node.assign_variable(assignment)
         return node
 
 
     # Visit a parse tree produced by OpenSCADParser#letBindingList.
-    def visitLetBindingList(self, ctx:OpenSCADParser.LetBindingListContext) -> dict[str, Expression]:
-        bindings = {}
+    def visitLetBindingList(self, ctx:OpenSCADParser.LetBindingListContext) -> list[Assignment]:
+        bindings = []
         current = ctx
         while current is not None:
-            name, expr = self.visit(current.letBinding())
-            bindings[name] = expr
+            bindings.append(self.visit(current.letBinding()))
             current = current.letBindingList()
         return bindings
 
 
     # Visit a parse tree produced by OpenSCADParser#letBinding.
-    def visitLetBinding(self, ctx:OpenSCADParser.LetBindingContext) -> tuple[str, Expression]:
-        return ctx.IDENT().getText(), self.visit(ctx.expr())
+    def visitLetBinding(self, ctx:OpenSCADParser.LetBindingContext) -> Assignment:
+        return Assignment(name=ctx.IDENT().getText(), value=self.visit(ctx.expr()))
 
 
     # Visit a parse tree produced by OpenSCADParser#moduleDefinition.
-    def visitModuleDefinition(self, ctx:OpenSCADParser.ModuleDefinitionContext):
-        return self.visitChildren(ctx)
+    def visitModuleDefinition(self, ctx:OpenSCADParser.ModuleDefinitionContext) -> TreeNode:
+        node = TreeNode(ctx.IDENT().getText(), positional_args=[], named_args={})
+        body = self.visit(ctx.moduleCallSeq())
+        node.add_child(body)
+        return node
 
 
     # Visit a parse tree produced by OpenSCADParser#assignment.
-    def visitAssignment(self, ctx:OpenSCADParser.AssignmentContext):
-        return self.visitChildren(ctx)
+    def visitAssignment(self, ctx:OpenSCADParser.AssignmentContext) -> Assignment:
+        return Assignment(name=ctx.IDENT().getText(), value=self.visit(ctx.expr()))
 
 
     # Visit a parse tree produced by OpenSCADParser#argList.

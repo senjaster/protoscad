@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Sequence
+from copy import copy
 
-from manifold_learn.ast.expression import Expression
+from manifold_learn.ast.expression import Assignment, Expression
 
 
 @dataclass
@@ -11,18 +12,36 @@ class TreeNode:
     named_args: dict[str, Expression]
     _parent: TreeNode | None = None
     _children: list[TreeNode] = field(default_factory=list)
-    _variables: dict[str, Expression] = field(default_factory=dict)  # Type to be defined
+    _variables: dict[str, Assignment] = field(default_factory=dict)  # Type to be defined
     _modules: dict[str, Any] = field(default_factory=dict)
 
-    def assign_variable(self, name: str, expression: Expression):
-        self._variables[name] = expression
+    def assign_variable(self, assignment: Assignment):
+        self._variables[assignment.name] = assignment
+
+    def excluding_var(self, name: str) -> "TreeNode":
+        """Return a copy of this node that does not resolve ``name`` in its
+        own scope, falling through to the parent instead.
+
+        This prevents a variable definition from referencing itself: in
+        ``{ width = width / 2; }`` the right-hand ``width`` resolves to the
+        parent scope, per OpenSCAD's declarative semantics.
+        """
+        node = copy(self)
+        node._variables = {k: v for k, v in self._variables.items() if k != name}
+        return node
 
     def eval_variable(self, name: str) -> Any:
-        if name in self._variables:
+        """Resolve a variable in scope.
 
+        Lookup order is: current scope first, then parent scope. The variable
+        is stored as an Assignment expression, which excludes itself during
+        evaluation so a definition cannot reference itself.
+        """
+        if name in self._variables:
             return self._variables[name].evaluate(self)
-        else:
-            return self._parent.eval_variable(name) if self._parent else None
+        if self._parent is not None:
+            return self._parent.eval_variable(name)
+        return None
 
     def set_module(self, name: str, value: Any):
         self._modules[name] = value

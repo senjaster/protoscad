@@ -31,6 +31,21 @@ class Variable(Expression):
 
 
 @dataclass
+class Assignment(Expression):
+    """A variable assignment, e.g. `width = 10;`.
+
+    Evaluates the assigned value against a node that excludes this variable,
+    so a definition cannot reference itself (OpenSCAD declarative semantics).
+    """
+
+    name: str
+    value: Expression
+
+    def evaluate(self, node: "TreeNode") -> Any:
+        return self.value.evaluate(node.excluding_var(self.name))
+
+
+@dataclass
 class BinaryOp(Expression):
     op: str
     left: Expression
@@ -66,4 +81,3 @@ class Raw(Expression):
 
     def evaluate(self, node: "TreeNode") -> Any:
         return self.text
-    
