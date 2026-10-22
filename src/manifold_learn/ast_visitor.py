@@ -107,28 +107,28 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
     # Visit a parse tree produced by OpenSCADParser#argList.
     def visitArgList(self, ctx:OpenSCADParser.ArgListContext) -> tuple[list[Expression], dict[str, Expression]]:
-        positional = []
-        named = {}
-        current = ctx
-        while current is not None:
-            arg = current.arg()
-            if isinstance(arg, OpenSCADParser.NamedArgContext):
-                name, expr = self.visitNamedArg(arg)
-                named[name] = expr
-            else:
-                positional.append(self.visitPositionalArg(arg))
-            current = current.argList()
+        positional = self.visit(ctx.positionalArgs()) if ctx.positionalArgs() is not None else []
+        named = self.visit(ctx.namedArgs()) if ctx.namedArgs() is not None else {}
         return positional, named
 
 
-    # Visit a parse tree produced by OpenSCADParser#NamedArg.
+    # Visit a parse tree produced by OpenSCADParser#positionalArgs.
+    def visitPositionalArgs(self, ctx:OpenSCADParser.PositionalArgsContext) -> list[Expression]:
+        return [self.visit(expr) for expr in ctx.expr()]
+
+
+    # Visit a parse tree produced by OpenSCADParser#namedArgs.
+    def visitNamedArgs(self, ctx:OpenSCADParser.NamedArgsContext) -> dict[str, Expression]:
+        named = {}
+        for arg in ctx.namedArg():
+            name, expr = self.visitNamedArg(arg)
+            named[name] = expr
+        return named
+
+
+    # Visit a parse tree produced by OpenSCADParser#namedArg.
     def visitNamedArg(self, ctx:OpenSCADParser.NamedArgContext) -> tuple[str, Expression]:
         return ctx.IDENT().getText(), self.visit(ctx.expr())
-
-
-    # Visit a parse tree produced by OpenSCADParser#PositionalArg.
-    def visitPositionalArg(self, ctx:OpenSCADParser.PositionalArgContext) -> Expression:
-        return self.visit(ctx.expr())
 
 
     # Visit a parse tree produced by OpenSCADParser#StringExpr.
