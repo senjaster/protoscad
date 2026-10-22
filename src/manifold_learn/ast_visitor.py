@@ -1,7 +1,13 @@
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 from manifold_learn.grammar.OpenSCADVisitor import OpenSCADVisitor
 from manifold_learn.ast.tree_node import TreeNode
-from manifold_learn.ast.expression import Expression
+from manifold_learn.ast.expression import (
+    BinaryOp,
+    NumberLiteral,
+    Paren,
+    Raw,
+    Variable,
+)
 from manifold3d import Manifold as m3d
 
 class AstOpenSCADVisitor(OpenSCADVisitor):
@@ -137,8 +143,8 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
 
     # Visit a parse tree produced by OpenSCADParser#IdentExpr.
-    def visitIdentExpr(self, ctx:OpenSCADParser.IdentExprContext):
-        return self._expr_stub(ctx)
+    def visitIdentExpr(self, ctx:OpenSCADParser.IdentExprContext) -> Variable:
+        return Variable(ctx.IDENT().getText())
 
 
     # Visit a parse tree produced by OpenSCADParser#ArrayExpr.
@@ -147,25 +153,35 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
 
     # Visit a parse tree produced by OpenSCADParser#NumberExpr.
-    def visitNumberExpr(self, ctx:OpenSCADParser.NumberExprContext):
-        return self._expr_stub(ctx)
+    def visitNumberExpr(self, ctx:OpenSCADParser.NumberExprContext) -> NumberLiteral:
+        return NumberLiteral(float(ctx.NUMBER().getText()))
 
 
-    # Visit a parse tree produced by OpenSCADParser#BinaryExpr.
-    def visitBinaryExpr(self, ctx:OpenSCADParser.BinaryExprContext):
-        return self._expr_stub(ctx)
+    # Visit a parse tree produced by OpenSCADParser#AdditiveExpr.
+    def visitAdditiveExpr(self, ctx:OpenSCADParser.AdditiveExprContext) -> BinaryOp:
+        left = self.visit(ctx.expr(0))
+        right = self.visit(ctx.expr(1))
+        return BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right)
+
+
+    # Visit a parse tree produced by OpenSCADParser#MultiplicativeExpr.
+    def visitMultiplicativeExpr(self, ctx:OpenSCADParser.MultiplicativeExprContext) -> BinaryOp:
+        left = self.visit(ctx.expr(0))
+        right = self.visit(ctx.expr(1))
+        return BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right)
 
 
     # Visit a parse tree produced by OpenSCADParser#ParenExpr.
-    def visitParenExpr(self, ctx:OpenSCADParser.ParenExprContext):
-        return self._expr_stub(ctx)
+    def visitParenExpr(self, ctx:OpenSCADParser.ParenExprContext) -> Paren:
+        return Paren(self.visit(ctx.expr()))
 
 
     # Visit a parse tree produced by OpenSCADParser#exprList.
     def visitExprList(self, ctx:OpenSCADParser.ExprListContext):
         return self._expr_stub(ctx)
 
-    # Temporary stand-in for the not-yet-implemented expression evaluation.
-    # Captures the raw source text so args/let-bindings are wired up correctly.
+    # Temporary stand-in for the not-yet-implemented expression forms
+    # (string, array). Captures the raw source text so args/let-bindings
+    # are wired up correctly.
     def _expr_stub(self, ctx):
-        return Expression(ctx.getText())
+        return Raw(ctx.getText())

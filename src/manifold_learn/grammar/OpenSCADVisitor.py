@@ -79,18 +79,28 @@ class OpenSCADVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by OpenSCADParser#NamedArg.
-    def visitNamedArg(self, ctx:OpenSCADParser.NamedArgContext):
+    # Visit a parse tree produced by OpenSCADParser#positionalArgs.
+    def visitPositionalArgs(self, ctx:OpenSCADParser.PositionalArgsContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by OpenSCADParser#PositionalArg.
-    def visitPositionalArg(self, ctx:OpenSCADParser.PositionalArgContext):
+    # Visit a parse tree produced by OpenSCADParser#namedArgs.
+    def visitNamedArgs(self, ctx:OpenSCADParser.NamedArgsContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#namedArg.
+    def visitNamedArg(self, ctx:OpenSCADParser.NamedArgContext):
         return self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by OpenSCADParser#StringExpr.
     def visitStringExpr(self, ctx:OpenSCADParser.StringExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#MultiplicativeExpr.
+    def visitMultiplicativeExpr(self, ctx:OpenSCADParser.MultiplicativeExprContext):
         return self.visitChildren(ctx)
 
 
@@ -104,13 +114,13 @@ class OpenSCADVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by OpenSCADParser#NumberExpr.
-    def visitNumberExpr(self, ctx:OpenSCADParser.NumberExprContext):
+    # Visit a parse tree produced by OpenSCADParser#AdditiveExpr.
+    def visitAdditiveExpr(self, ctx:OpenSCADParser.AdditiveExprContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by OpenSCADParser#BinaryExpr.
-    def visitBinaryExpr(self, ctx:OpenSCADParser.BinaryExprContext):
+    # Visit a parse tree produced by OpenSCADParser#NumberExpr.
+    def visitNumberExpr(self, ctx:OpenSCADParser.NumberExprContext):
         return self.visitChildren(ctx)
 
 

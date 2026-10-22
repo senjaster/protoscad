@@ -8,6 +8,7 @@ wheels/
 
 # IDE
 .idea
+.nessy
 
 # Virtual environments
 .venv

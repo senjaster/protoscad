@@ -22,28 +22,33 @@ letExpr : LET '(' letBindingList ')' ;
 letBindingList : letBinding
                | letBinding ',' letBindingList
                ;
-letBinding : IDENT '=' expr ;
+letBinding : IDENT EQ expr ;
 
 // Module definition, e.g. `module SomeName(arg1, arg2=10) { ... }`
 moduleDefinition : 'module' IDENT '(' argList? ')' moduleCallSeq ;
 
 // Variable assignment
-assignment  : IDENT '=' expr ';' ;
+assignment  : IDENT EQ expr ';' ;
 
 // Arguments
-argList     : arg
-            | arg ',' argList
+// Positional arguments must precede named arguments; mixing in reverse order is a syntax error.
+// The explicit ',' before namedArgs anchors the boundary, letting ANTLR resolve it without a predicate.
+argList     : positionalArgs (',' namedArgs)?
+            | namedArgs
             ;
 
-arg         : IDENT '=' expr           # NamedArg
-            | expr                     # PositionalArg
-            ;
+positionalArgs : expr (',' expr)* ;
 
-expr        : NUMBER                    # NumberExpr
+namedArgs   : namedArg (',' namedArg)* ;
+
+namedArg    : IDENT EQ expr ;
+
+expr        : expr ('*' | '/') expr     # MultiplicativeExpr
+            | expr ('+' | '-') expr     # AdditiveExpr
+            | NUMBER                    # NumberExpr
             | STRING                    # StringExpr
             | IDENT                     # IdentExpr
             | '[' exprList? ']'         # ArrayExpr
-            | expr BINARY_OP expr       # BinaryExpr
             | '(' expr ')'              # ParenExpr
             ;
 
@@ -53,7 +58,7 @@ exprList    : expr
             ;
 
 // Lexer rules (UPPERCASE)
-BINARY_OP   : '+' | '-' | '*' | '/' ;
+EQ          : '=' ;
 // Must precede IDENT: for input `let` both rules match with equal length, and
 // ANTLR breaks ties by rule order, so LET wins. Longer words like `letter`
 // still lex as IDENT (longest-match takes precedence).
@@ -70,6 +75,5 @@ WS          : [ \t\r\n]+ -> skip ;
 
 // Existing issues
 // - NUMBER : '-'? [0-9]+ ... breaks binary minus after whitespace-free operands. x = 1 - 2; lexes fine (- followed by space can't match NUMBER), but x = 1 -2; lexes as NUMBER(1) NUMBER(-2) and fails to parse. The usual fix is to drop '-' from NUMBER and add a '-' expr unary alternative under # UnaryExpr; then -3.2 in arrays still works.
-// - All four operators sit in one expr BINARY_OP expr alternative, so * and / have the same precedence as + and - and everything is left-associative — 1 + 2 * 3 evaluates the same shape as (1 + 2) * 3. Fix by splitting into precedence tiers (expr ('*'|'/') expr level above expr ('+'|'-') expr) rather than a single BINARY_OP.
 // - '[' exprList? ']' and exprList/argList are right-recursive, so recursion depth grows with list length. Harmless at realistic sizes; a (',' expr)* loop shape avoids it if you ever feed generated input.
 // - STRING has no escape handling — "a\"b" can't be written.
