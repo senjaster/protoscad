@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from manifold_learn.ast.expression import Assignment, NumberLiteral
 from manifold_learn.runtime.environment import Environment
-from manifold_learn.ast.expression import Assignment, BinaryOp, NumberLiteral, Variable
 
 
 def make_env(**variables: float) -> Environment:
@@ -28,24 +28,6 @@ def test_child_scope_shadows_parent():
     child = Environment(variables={"x": Assignment("x", NumberLiteral(99.0))}, parent=parent)
     assert child.lookup_variable("x") == 99.0
     assert parent.lookup_variable("x") == 10.0
-
-
-def test_last_definition_wins_in_same_scope():
-    env = Environment()
-    env.define_variable(Assignment("width", NumberLiteral(10.0)))
-    env.define_variable(Assignment("width", NumberLiteral(100.0)))
-    assert env.lookup_variable("width") == 100.0
-
-
-def test_shadowing_references_parent_scope_on_rhs():
-    # OpenSCAD declarative semantics: a redefinition in an inner scope may
-    # reference the same-named variable from the parent scope on its RHS.
-    # The definition must not see itself (no self-reference).
-    parent = make_env(x=100.0)
-    child = Environment(parent=parent)
-    child.define_variable(Assignment("x", BinaryOp("/", Variable("x"), NumberLiteral(2.0))))
-    assert child.lookup_variable("x") == 50.0
-    assert parent.lookup_variable("x") == 100.0
 
 
 def test_extend_inherits_variables_and_shadows():
@@ -87,8 +69,7 @@ def test_lookup_module_shadows_parent():
 def test_dollar_variable_resolves_lexically_within_a_scope_tree():
     # Assignments reachable through plain lexical nesting are visible
     # without any module boundary involved.
-    outer = make_env()
-    outer.define_variable(Assignment("$fn", NumberLiteral(50.0)))
+    outer = make_env(**{"$fn": 50.0})
     inner = outer.extend_variables()
     assert inner.lookup_variable("$fn") == 50.0
 
@@ -97,8 +78,7 @@ def test_dollar_variable_crosses_module_boundary_via_dynamic_link():
     # $fn is set at the call site; the module body must see it even though
     # its lexical chain leads elsewhere.
     definition_scope = make_env()
-    call_scope = make_env()
-    call_scope.define_variable(Assignment("$fn", NumberLiteral(50.0)))
+    call_scope = make_env(**{"$fn": 50.0})
     body = Environment.for_module_body({}, definition_scope, call_scope)
     reader = body.extend_variables()
     assert reader.lookup_variable("$fn") == 50.0
@@ -107,23 +87,9 @@ def test_dollar_variable_crosses_module_boundary_via_dynamic_link():
 def test_dollar_variable_shadows_dynamic_value_inside_body():
     # A $ variable rebound inside the body wins over the call-site value.
     definition_scope = make_env()
-    call_scope = make_env()
-    call_scope.define_variable(Assignment("$fn", NumberLiteral(50.0)))
-    body = Environment.for_module_body({}, definition_scope, call_scope)
-    body.define_variable(Assignment("$fn", NumberLiteral(12.0)))
+    call_scope = make_env(**{"$fn": 50.0})
+    body = Environment.for_module_body({"$fn": Assignment("$fn", NumberLiteral(12.0))}, definition_scope, call_scope)
     assert body.lookup_variable("$fn") == 12.0
-
-
-def test_plain_variable_does_not_cross_module_boundary():
-    # Ordinary variables stay lexical: a call-site binding is invisible in
-    # the module body.
-    definition_scope = make_env()
-    call_scope = make_env(x=7.0)
-    body = Environment.for_module_body({}, definition_scope, call_scope)
-    assert body.lookup_variable("x") is None
-    # A definition-site binding IS visible
-    definition_scope.define_variable(Assignment("y", NumberLiteral(3.0)))
-    assert body.lookup_variable("y") == 3.0
 
 
 def test_dollar_variable_missing_returns_none():

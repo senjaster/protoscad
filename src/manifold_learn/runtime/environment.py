@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -25,8 +26,8 @@ class Environment:
 
     def __init__(
         self,
-        variables: dict[str, Assignment] | None = None,
-        modules: dict[str, ModuleDefinition] | None = None,
+        variables: Mapping[str, Assignment] | None = None,
+        modules: Mapping[str, ModuleDefinition] | None = None,
         parent: Environment | None = None,
         dynamic_parent: Environment | None = None,
         is_module_scope: bool = False,
@@ -58,19 +59,13 @@ class Environment:
         is inherited unchanged (nesting does not cross a module boundary)."""
         return Environment(variables=variables, parent=self, dynamic_parent=self._dynamic_parent)
 
-    def extend_modules(self, modules: dict[str, ModuleDefinition] | None = None) -> Environment:
+    def extend_modules(self, modules: Mapping[str, ModuleDefinition] | None = None) -> Environment:
         """A nested scope: its names shadow the parent's; the dynamic chain
         is inherited unchanged (nesting does not cross a module boundary)."""
         return Environment(modules=modules, parent=self, dynamic_parent=self._dynamic_parent)
 
-    def define_variable(self, assignment: Assignment) -> None:
-        self._variables[assignment.name] = assignment
-
-    def define_module(self, name: str, definition: ModuleDefinition) -> None:
-        self._modules[name] = definition
-
     def lookup_variable(self, name: str) -> Any:
-        env = self
+        env: Environment | None = self
         while env is not None:
             if name in env._variables:
                 return env._resolve_binding(name)
@@ -92,7 +87,7 @@ class Environment:
         return self._variables[name].value.evaluate(exclusion)
 
     def lookup_module(self, name: str) -> ModuleDefinition | None:
-        env = self
+        env: Environment | None = self
         while env is not None:
             if name in env._modules:
                 return env._modules[name]

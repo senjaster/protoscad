@@ -3,17 +3,17 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from manifold_learn.runtime.environment import Environment
 from manifold_learn.ast.expression import Assignment
-from manifold_learn.runtime.invocation import ChildInvocation, EvalContext
-from manifold_learn.runtime.manifold import LetModule, UnionModule
-from manifold_learn.runtime.module_closure import ModuleClosure
-from manifold_learn.runtime.module_definition import ModuleDefinition
 from manifold_learn.ast.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
     VariableBindingStatement,
 )
+from manifold_learn.runtime.environment import Environment
+from manifold_learn.runtime.invocation import ChildInvocation, EvalContext
+from manifold_learn.runtime.manifold import LetModule, UnionModule
+from manifold_learn.runtime.module_closure import ModuleClosure
+from manifold_learn.runtime.module_definition import ModuleDefinition
 
 
 class StatementEvaluator:

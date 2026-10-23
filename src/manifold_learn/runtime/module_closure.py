@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from manifold_learn.ast.expression import Assignment, Literal
+from manifold_learn.ast.statement import ModuleCallStatement, ModuleDefinitionStatement
 from manifold_learn.runtime.children_module import ChildrenModule
 from manifold_learn.runtime.environment import Environment
-from manifold_learn.ast.expression import Assignment, Literal
 from manifold_learn.runtime.invocation import EvalContext
 from manifold_learn.runtime.module_definition import ModuleDefinition
-from manifold_learn.ast.statement import ModuleCallStatement
 
 
 class ModuleClosure[Geometry](ModuleDefinition):
@@ -48,5 +48,5 @@ class ModuleClosure[Geometry](ModuleDefinition):
         return self._parameters
 
     @classmethod
-    def from_definition(cls, module: ModuleDefinition, env: Environment) -> ModuleClosure:
+    def from_definition(cls, module: ModuleDefinitionStatement, env: Environment) -> ModuleClosure:
         return cls(module.name, module.parameters, module.body, env)

@@ -51,4 +51,4 @@ class ModuleDefinitionStatement(Statement):
 
     name: str
     parameters: Mapping[str, Assignment]
-    body: ModuleCallStatement = field(default_factory=ModuleCallStatement)
+    body: ModuleCallStatement
