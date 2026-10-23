@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from typing import Generic, Mapping
+from collections.abc import Mapping
 
 from manifold_learn.ast.children_module import ChildrenModule
 from manifold_learn.ast.environment import Environment
 from manifold_learn.ast.expression import Assignment, Literal
-from manifold_learn.ast.module_definition import Geometry, ModuleDefinition
 from manifold_learn.ast.invocation import EvalContext
+from manifold_learn.ast.module_definition import Geometry, ModuleDefinition
 from manifold_learn.ast.statement import ModuleCallStatement
 
 
-class ModuleClosure(ModuleDefinition, Generic[Geometry]):
-
+class ModuleClosure[Geometry](ModuleDefinition):
     def __init__(
         self,
         name: str,
@@ -29,9 +28,7 @@ class ModuleClosure(ModuleDefinition, Generic[Geometry]):
         # resolve them, then instantiate the body in its definition-site
         # environment (lexical) with the call-site environment as the dynamic
         # parent (for $ variables).
-        parameters = {
-            name: Assignment(name, Literal(value)) for name, value in ctx.args.items()
-        }
+        parameters = {name: Assignment(name, Literal(value)) for name, value in ctx.args.items()}
         modules = {"children": ChildrenModule(ctx.children)}
         body_env = Environment(
             variables=parameters,

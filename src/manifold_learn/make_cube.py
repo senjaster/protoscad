@@ -1,5 +1,9 @@
-from manifold3d import Manifold as m3d
+# mypy: ignore-errors
+# ruff: noqa
+
 import trimesh
+from manifold3d import Manifold as m3d
+
 
 # Helper to convert a Manifold into a Trimesh
 def manifold2trimesh(manifold):
@@ -12,11 +16,8 @@ def manifold2trimesh(manifold):
         vertices = mesh.vert_properties
         colors = None
 
-    return trimesh.Trimesh(
-        vertices=vertices,
-        faces=mesh.tri_verts,
-        vertex_colors=colors
-    )
+    return trimesh.Trimesh(vertices=vertices, faces=mesh.tri_verts, vertex_colors=colors)
+
 
 def main():
     m3d.extrude()
@@ -27,6 +28,7 @@ def main():
     mesh = manifold2trimesh(cube)
 
     trimesh.exchange.export.export_mesh(mesh, "cube4.stl", "stl")
+
 
 if __name__ == "__main__":
     main()

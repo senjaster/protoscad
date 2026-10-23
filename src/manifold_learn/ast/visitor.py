@@ -1,11 +1,3 @@
-from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
-from manifold_learn.grammar.OpenSCADVisitor import OpenSCADVisitor
-from manifold_learn.ast.statement import (
-    ModuleCallStatement,
-    ModuleDefinitionStatement,
-    Statement,
-    VariableBindingStatement,
-)
 from manifold_learn.ast.expression import (
     ArrayLiteral,
     Assignment,
@@ -16,6 +8,14 @@ from manifold_learn.ast.expression import (
     Undefined,
     Variable,
 )
+from manifold_learn.ast.statement import (
+    ModuleCallStatement,
+    ModuleDefinitionStatement,
+    Statement,
+    VariableBindingStatement,
+)
+from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
+from manifold_learn.grammar.OpenSCADVisitor import OpenSCADVisitor
 
 
 class AstOpenSCADVisitor(OpenSCADVisitor):
@@ -94,10 +94,8 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
     # Visit a parse tree produced by OpenSCADParser#body.
     def visitBody(self, ctx: OpenSCADParser.BodyContext) -> ModuleCallStatement:
-        if ctx.block() is not None:
-            children = self.visit(ctx.block())
-        else:
-            children = [self.visit(ctx.moduleCallSeq())]
+
+        children = self.visit(ctx.block()) if ctx.block() is not None else [self.visit(ctx.moduleCallSeq())]
         return ModuleCallStatement("union", children=children)
 
     # Visit a parse tree produced by OpenSCADParser#block.
@@ -113,8 +111,7 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
         # in the let node's body, followed by the visited continuation.
         bindings = self.visit(ctx.letBindingList())
         children: list[Statement] = [
-            VariableBindingStatement(name=assignment.name, value=assignment.value)
-            for assignment in bindings
+            VariableBindingStatement(name=assignment.name, value=assignment.value) for assignment in bindings
         ]
         return ModuleCallStatement("let", children=children)
 
@@ -161,9 +158,7 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
         )
 
     # Visit a parse tree produced by OpenSCADParser#argList.
-    def visitArgList(
-        self, ctx: OpenSCADParser.ArgListContext
-    ) -> tuple[list, dict]:
+    def visitArgList(self, ctx: OpenSCADParser.ArgListContext) -> tuple[list, dict]:
         positional = self.visit(ctx.positionalArgs()) if ctx.positionalArgs() is not None else []
         named = self.visit(ctx.namedArgs()) if ctx.namedArgs() is not None else {}
         return positional, named

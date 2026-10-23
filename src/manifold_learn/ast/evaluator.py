@@ -5,16 +5,15 @@ from typing import Any
 
 from manifold_learn.ast.environment import Environment
 from manifold_learn.ast.expression import Assignment
-from manifold_learn.ast.manifold import LetModule, UnionModule
-from manifold_learn.ast.module_definition import ModuleDefinition
 from manifold_learn.ast.invocation import ChildInvocation, EvalContext
+from manifold_learn.ast.manifold import LetModule, UnionModule
+from manifold_learn.ast.module_closure import ModuleClosure
+from manifold_learn.ast.module_definition import ModuleDefinition
 from manifold_learn.ast.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
-    Statement,
     VariableBindingStatement,
 )
-from manifold_learn.ast.module_closure import ModuleClosure
 
 
 class StatementEvaluator:

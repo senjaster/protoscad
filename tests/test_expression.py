@@ -5,13 +5,13 @@ import pytest
 from manifold_learn.ast.environment import Environment
 from manifold_learn.ast.expression import (
     ArrayLiteral,
+    Assignment,
     BinaryOp,
     Expression,
     NumberLiteral,
     Paren,
     Raw,
     Variable,
-    Assignment,
 )
 
 
@@ -21,9 +21,7 @@ def env() -> Environment:
 
 
 def make_env(**variables: float) -> Environment:
-    return Environment(
-        variables={name: Assignment(name, NumberLiteral(value)) for name, value in variables.items()}
-    )
+    return Environment(variables={name: Assignment(name, NumberLiteral(value)) for name, value in variables.items()})
 
 
 def test_expression_base_raises_not_implemented():
@@ -85,10 +83,12 @@ def test_raw_returns_text():
 
 
 def test_array_literal_evaluates_elements():
-    expr = ArrayLiteral([
-        NumberLiteral(1.0),
-        BinaryOp("+", NumberLiteral(2.0), NumberLiteral(3.0)),
-    ])
+    expr = ArrayLiteral(
+        [
+            NumberLiteral(1.0),
+            BinaryOp("+", NumberLiteral(2.0), NumberLiteral(3.0)),
+        ]
+    )
     assert expr.evaluate(Environment()) == [1.0, 5.0]
 
 

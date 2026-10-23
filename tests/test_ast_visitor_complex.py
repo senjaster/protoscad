@@ -127,17 +127,13 @@ def test_chained_scale_translate_box_nesting():
     assert isinstance(scale, ModuleCallStatement)
     assert scale.module == "scale"
     # Array literal builds a list of element expressions
-    assert scale.positional_args == [
-        ArrayLiteral([NumberLiteral(1.0), NumberLiteral(2.0), NumberLiteral(1.0)])
-    ]
+    assert scale.positional_args == [ArrayLiteral([NumberLiteral(1.0), NumberLiteral(2.0), NumberLiteral(1.0)])]
 
     translate = scale.children[0]
     assert isinstance(translate, ModuleCallStatement)
     assert translate.module == "translate"
     # The array literal [width, depth, height] resolves to variables
-    assert translate.positional_args == [
-        ArrayLiteral([Variable("width"), Variable("depth"), Variable("height")])
-    ]
+    assert translate.positional_args == [ArrayLiteral([Variable("width"), Variable("depth"), Variable("height")])]
 
     # translate's body: box, cylinder, and the nested bare block (transparent,
     # so its sphere and translate->cube land directly in translate's children).
@@ -176,9 +172,7 @@ def test_chained_scale_translate_box_nesting():
     cube = inner_translate.children[0]
     assert isinstance(cube, ModuleCallStatement)
     assert cube.module == "cube"
-    assert cube.positional_args == [
-        ArrayLiteral([NumberLiteral(1.0), NumberLiteral(1.0), NumberLiteral(1.0)])
-    ]
+    assert cube.positional_args == [ArrayLiteral([NumberLiteral(1.0), NumberLiteral(1.0), NumberLiteral(1.0)])]
 
 
 def test_let_binding_becomes_variable_binding_statement():
@@ -196,9 +190,7 @@ def test_let_binding_becomes_variable_binding_statement():
     translate = let_node.children[1]
     assert isinstance(translate, ModuleCallStatement)
     assert translate.module == "translate"
-    assert translate.positional_args == [
-        ArrayLiteral([NumberLiteral(0.0), NumberLiteral(0.0), Variable("offset")])
-    ]
+    assert translate.positional_args == [ArrayLiteral([NumberLiteral(0.0), NumberLiteral(0.0), Variable("offset")])]
     box = translate.children[0]
     assert isinstance(box, ModuleCallStatement)
     assert box.module == "box"
@@ -213,9 +205,7 @@ def test_top_level_assignments_are_variable_binding_statements():
     # width is redefined to 100 later in the source; both bindings appear as
     # separate statements (last-definition-wins is an evaluator concern).
     assert [
-        (s.name, s.value)
-        for s in scope.children
-        if isinstance(s, VariableBindingStatement) and s.name == "width"
+        (s.name, s.value) for s in scope.children if isinstance(s, VariableBindingStatement) and s.name == "width"
     ] == [
         ("width", NumberLiteral(10.0)),
         ("width", NumberLiteral(100.0)),
@@ -228,9 +218,7 @@ def test_rotate_chain_uses_top_level_variable():
     rotate = scope.children[5]
     assert isinstance(rotate, ModuleCallStatement)
     assert rotate.module == "rotate"
-    assert rotate.positional_args == [
-        ArrayLiteral([NumberLiteral(0.0), NumberLiteral(0.0), NumberLiteral(45.0)])
-    ]
+    assert rotate.positional_args == [ArrayLiteral([NumberLiteral(0.0), NumberLiteral(0.0), NumberLiteral(45.0)])]
     box = rotate.children[0]
     assert isinstance(box, ModuleCallStatement)
     assert box.module == "box"

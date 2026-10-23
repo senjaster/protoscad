@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -10,7 +9,7 @@ if TYPE_CHECKING:
     from manifold_learn.ast.expression import Assignment, Expression
 
 
-class Statement(ABC):
+class Statement:
     """Base class for a statement in a scope.
 
     A scope is a ``ModuleCallStatement`` whose ``children`` hold the

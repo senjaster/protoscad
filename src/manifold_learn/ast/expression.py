@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 class Expression:
     """Base class for a node in the expression AST."""
 
-    def evaluate(self, env: "Environment") -> Any:
+    def evaluate(self, env: Environment) -> Any:
         raise NotImplementedError
 
 
@@ -18,7 +18,7 @@ class Expression:
 class NumberLiteral(Expression):
     value: float
 
-    def evaluate(self, env: "Environment") -> float:
+    def evaluate(self, env: Environment) -> float:
         return self.value
 
 
@@ -34,7 +34,7 @@ class Literal(Expression):
 
     value: Any
 
-    def evaluate(self, env: "Environment") -> Any:
+    def evaluate(self, env: Environment) -> Any:
         return self.value
 
 
@@ -42,7 +42,7 @@ class Literal(Expression):
 class Variable(Expression):
     name: str
 
-    def evaluate(self, env: "Environment") -> Any:
+    def evaluate(self, env: Environment) -> Any:
         return env.lookup_variable(self.name)
 
 
@@ -64,7 +64,7 @@ class BinaryOp(Expression):
     left: Expression
     right: Expression
 
-    def evaluate(self, env: "Environment") -> Any:
+    def evaluate(self, env: Environment) -> Any:
         left = self.left.evaluate(env)
         right = self.right.evaluate(env)
         if self.op == "+":
@@ -82,7 +82,7 @@ class BinaryOp(Expression):
 class Paren(Expression):
     inner: Expression
 
-    def evaluate(self, env: "Environment") -> Any:
+    def evaluate(self, env: Environment) -> Any:
         return self.inner.evaluate(env)
 
 
@@ -92,7 +92,7 @@ class ArrayLiteral(Expression):
 
     elements: list[Expression]
 
-    def evaluate(self, env: "Environment") -> list[Any]:
+    def evaluate(self, env: Environment) -> list[Any]:
         return [element.evaluate(env) for element in self.elements]
 
 
@@ -102,7 +102,7 @@ class Raw(Expression):
 
     text: str
 
-    def evaluate(self, env: "Environment") -> Any:
+    def evaluate(self, env: Environment) -> Any:
         return self.text
 
 
@@ -113,5 +113,5 @@ class Undefined(Expression):
     Evaluating it is a runtime error: a required parameter was never supplied.
     """
 
-    def evaluate(self, env: "Environment") -> Any:
+    def evaluate(self, env: Environment) -> Any:
         raise ValueError("Undefined parameter value")

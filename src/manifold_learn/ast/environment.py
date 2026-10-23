@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from manifold_learn.ast.expression import Assignment
@@ -63,7 +63,6 @@ class Environment:
         is inherited unchanged (nesting does not cross a module boundary)."""
         return Environment(modules=modules, parent=self, dynamic_parent=self._dynamic_parent)
 
-
     def define_variable(self, assignment: Assignment) -> None:
         self._variables[assignment.name] = assignment
 
@@ -75,10 +74,8 @@ class Environment:
         while env is not None:
             if name in env._variables:
                 return env._resolve_binding(name)
-            if name.startswith("$") and env._is_module_scope:
-                env = env._dynamic_parent
-            else:
-                env = env._parent
+            use_dynamic_env = name.startswith("$") and env._is_module_scope
+            env = env._dynamic_parent if use_dynamic_env else env._parent
         return None
 
     def _resolve_binding(self, name: str) -> Any:

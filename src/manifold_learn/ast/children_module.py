@@ -1,6 +1,6 @@
-from typing import Sequence, Mapping
+from collections.abc import Mapping, Sequence
 
-from manifold_learn.ast.expression import Assignment, NumberLiteral
+from manifold_learn.ast.expression import Assignment
 from manifold_learn.ast.invocation import ChildInvocation, EvalContext
 from manifold_learn.ast.module_definition import BuiltinModule, Geometry
 
@@ -32,6 +32,3 @@ class ChildrenModule(BuiltinModule):
     @property
     def parameters(self) -> Mapping[str, Assignment]:
         return self.make_parameters(required=["i"])
-
-
-

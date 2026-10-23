@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import pytest
+from antlr4 import CommonTokenStream, InputStream
 from manifold3d import Manifold
 
+from manifold_learn.ast.evaluator import StatementEvaluator
 from manifold_learn.ast.expression import Assignment, NumberLiteral
-from manifold_learn.ast.invocation import ChildInvocation, EvalContext
+from manifold_learn.ast.invocation import EvalContext
 from manifold_learn.ast.manifold import CubeModule, TranslateModule
 from manifold_learn.ast.module_definition import BuiltinModule
-from manifold_learn.ast.evaluator import StatementEvaluator
 from manifold_learn.ast.statement import ModuleCallStatement
 from manifold_learn.ast.visitor import AstOpenSCADVisitor
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
-from antlr4 import CommonTokenStream, InputStream
 
 MARKER_GEOMETRY = Manifold.cube([1.0, 1.0, 1.0])
 

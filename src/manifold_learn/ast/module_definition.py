@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
-from typing import Generic, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from manifold_learn.ast.expression import Assignment, Undefined
-
 
 if TYPE_CHECKING:
     from manifold_learn.ast.expression import Expression
@@ -14,7 +13,7 @@ if TYPE_CHECKING:
 Geometry = TypeVar("Geometry")
 
 
-class ModuleDefinition(ABC, Generic[Geometry]):
+class ModuleDefinition[Geometry](ABC):
     """A module that can be invoked to produce geometry.
 
     Two concrete kinds exist:
@@ -47,7 +46,9 @@ class ModuleDefinition(ABC, Generic[Geometry]):
     def parameters(self) -> Mapping[str, Assignment]:
         raise NotImplementedError
 
-    def bind_parameters(self, positional_args: list[Expression], named_args: dict[str, Expression]) -> Mapping[str, Assignment]:
+    def bind_parameters(
+        self, positional_args: list[Expression], named_args: dict[str, Expression]
+    ) -> Mapping[str, Assignment]:
         """Bind the given arguments to the parameters of this module.
 
         The arguments are bound in the following order:
@@ -59,7 +60,7 @@ class ModuleDefinition(ABC, Generic[Geometry]):
         bound: dict[str, Assignment] = {}
 
         # Positional arguments bind to the formal parameters in declaration order.
-        for name, arg in zip(parameters.keys(), positional_args):
+        for name, arg in zip(parameters.keys(), positional_args, strict=False):
             bound[name] = Assignment(name, arg)
 
         # Named arguments bind by name and take precedence over positional.
@@ -74,7 +75,7 @@ class ModuleDefinition(ABC, Generic[Geometry]):
         return bound
 
 
-class BuiltinModule(ModuleDefinition, Generic[Geometry]):
+class BuiltinModule[Geometry](ModuleDefinition):
     """Base class for the modules shipped with the language.
 
     A built-in module's parameters are always either required (no default)
@@ -103,9 +104,7 @@ class BuiltinModule(ModuleDefinition, Generic[Geometry]):
         caller; ``optional`` maps each parameter name to its fixed literal
         default.
         """
-        built: dict[str, Assignment] = {
-            name: BuiltinModule.required(name) for name in required
-        }
+        built: dict[str, Assignment] = {name: BuiltinModule.required(name) for name in required}
         for name, default in (optional or {}).items():
             built[name] = BuiltinModule.optional(name, default)
         return built

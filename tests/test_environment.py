@@ -5,9 +5,7 @@ from manifold_learn.ast.expression import Assignment, BinaryOp, NumberLiteral, V
 
 
 def make_env(**variables: float) -> Environment:
-    return Environment(
-        variables={name: Assignment(name, NumberLiteral(value)) for name, value in variables.items()}
-    )
+    return Environment(variables={name: Assignment(name, NumberLiteral(value)) for name, value in variables.items()})
 
 
 def test_lookup_local_variable():
@@ -45,9 +43,7 @@ def test_shadowing_references_parent_scope_on_rhs():
     # The definition must not see itself (no self-reference).
     parent = make_env(x=100.0)
     child = Environment(parent=parent)
-    child.define_variable(
-        Assignment("x", BinaryOp("/", Variable("x"), NumberLiteral(2.0)))
-    )
+    child.define_variable(Assignment("x", BinaryOp("/", Variable("x"), NumberLiteral(2.0))))
     assert child.lookup_variable("x") == 50.0
     assert parent.lookup_variable("x") == 100.0
 

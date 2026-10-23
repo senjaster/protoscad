@@ -3,7 +3,15 @@ from __future__ import annotations
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
-from manifold_learn.ast.expression import ArrayLiteral, Assignment, BinaryOp, NumberLiteral, Paren, Undefined, Variable
+from manifold_learn.ast.expression import (
+    ArrayLiteral,
+    Assignment,
+    BinaryOp,
+    NumberLiteral,
+    Paren,
+    Undefined,
+    Variable,
+)
 from manifold_learn.ast.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
@@ -79,9 +87,7 @@ def test_named_args():
 def test_mixed_positional_and_named_args():
     scope = parse_scad("cube([10,10,10], center=true);")
     node = single_call(scope)
-    assert node.positional_args == [
-        ArrayLiteral([NumberLiteral(10.0), NumberLiteral(10.0), NumberLiteral(10.0)])
-    ]
+    assert node.positional_args == [ArrayLiteral([NumberLiteral(10.0), NumberLiteral(10.0), NumberLiteral(10.0)])]
     assert node.named_args == {"center": Variable("true")}
 
 
@@ -141,9 +147,7 @@ def test_call_with_braced_block_is_single_child():
 def test_bare_block_inside_call_body_is_unwrapped():
     # QUIRKS.md: children(1) yields `bbb` only, because the bare block is
     # unwrapped and contributes `bbb` and `ccc` as two separate children.
-    scope = parse_scad(
-        'module my_mod() { children(1); } my_mod() { echo("aaa"); { echo("bbb"); echo("ccc"); } }'
-    )
+    scope = parse_scad('module my_mod() { children(1); } my_mod() { echo("aaa"); { echo("bbb"); echo("ccc"); } }')
     call = scope.children[1]
     assert isinstance(call, ModuleCallStatement)
     assert [s.module for s in call.children] == ["echo", "echo", "echo"]
@@ -222,7 +226,10 @@ def test_let_binding_becomes_variable_binding_statement():
 def test_let_multiple_bindings():
     scope = parse_scad("let(a=1, b=2) { cube(a); }")
     let_node = single_call(scope)
-    assert [s.name for s in let_node.children if isinstance(s, VariableBindingStatement)] == ["a", "b"]
+    assert [s.name for s in let_node.children if isinstance(s, VariableBindingStatement)] == [
+        "a",
+        "b",
+    ]
 
 
 ## =========================================================================
@@ -312,13 +319,7 @@ def test_empty_array_literal():
 
 
 def test_comments_are_ignored():
-    scope = parse_scad(
-        "// line comment\n"
-        "cube(1);\n"
-        "/* block\n"
-        "comment */\n"
-        "sphere(2);\n"
-    )
+    scope = parse_scad("// line comment\ncube(1);\n/* block\ncomment */\nsphere(2);\n")
     assert [s.module for s in scope.children] == ["cube", "sphere"]
 
 
