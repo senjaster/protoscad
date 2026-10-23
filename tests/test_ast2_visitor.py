@@ -7,7 +7,6 @@ from manifold_learn.ast.expression import ArrayLiteral, Assignment, BinaryOp, Nu
 from manifold_learn.ast.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
-    Statement,
     VariableBindingStatement,
 )
 from manifold_learn.ast.visitor import AstOpenSCADVisitor
@@ -15,8 +14,8 @@ from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 
 
-def parse_scad(source: str) -> list[Statement]:
-    """Parse source via the OpenSCAD grammar, returning a scope (statement list)."""
+def parse_scad(source: str) -> ModuleCallStatement:
+    """Parse source via the OpenSCAD grammar, returning the root scope call."""
     lexer = OpenSCADLexer(InputStream(source))
     stream = CommonTokenStream(lexer)
     parser = OpenSCADParser(stream)
@@ -24,8 +23,8 @@ def parse_scad(source: str) -> list[Statement]:
     return AstOpenSCADVisitor().visit(tree)
 
 
-def parse_scad_with_errors(source: str) -> tuple[list[Statement], list[str]]:
-    """Parse source, returning (scope, list of syntax error messages)."""
+def parse_scad_with_errors(source: str) -> tuple[ModuleCallStatement, list[str]]:
+    """Parse source, returning (root scope call, list of syntax error messages)."""
     errors: list[str] = []
 
     class Collector(ErrorListener):
@@ -44,10 +43,10 @@ def parse_scad_with_errors(source: str) -> tuple[list[Statement], list[str]]:
     return scope, errors
 
 
-def single_call(scope: list[Statement]) -> ModuleCallStatement:
-    assert len(scope) == 1
-    assert isinstance(scope[0], ModuleCallStatement)
-    return scope[0]
+def single_call(scope: ModuleCallStatement) -> ModuleCallStatement:
+    assert len(scope.children) == 1
+    assert isinstance(scope.children[0], ModuleCallStatement)
+    return scope.children[0]
 
 
 ## =========================================================================
@@ -107,12 +106,12 @@ def test_chained_module_calls_nest():
 def test_bare_block_splices_into_scope():
     scope = parse_scad("{ cube(1); sphere(2); }")
     # The bare block contributes its calls directly to the enclosing scope.
-    assert [s.module for s in scope] == ["cube", "sphere"]
+    assert [s.module for s in scope.children] == ["cube", "sphere"]
 
 
 def test_nested_bare_blocks_splice():
     scope = parse_scad("{ cube(1); { sphere(2); } }")
-    assert [s.module for s in scope] == ["cube", "sphere"]
+    assert [s.module for s in scope.children] == ["cube", "sphere"]
 
 
 ## =========================================================================
@@ -131,7 +130,7 @@ def test_call_with_braced_block_is_single_child():
     scope = parse_scad(
         'module my_mod() { children(1); } my_mod() { echo("aaa"); union() { echo("bbb"); echo("ccc"); } }'
     )
-    call = scope[1]
+    call = scope.children[1]
     assert isinstance(call, ModuleCallStatement)
     assert [s.module for s in call.children] == ["echo", "union"]
     union = call.children[1]
@@ -145,7 +144,7 @@ def test_bare_block_inside_call_body_is_unwrapped():
     scope = parse_scad(
         'module my_mod() { children(1); } my_mod() { echo("aaa"); { echo("bbb"); echo("ccc"); } }'
     )
-    call = scope[1]
+    call = scope.children[1]
     assert isinstance(call, ModuleCallStatement)
     assert [s.module for s in call.children] == ["echo", "echo", "echo"]
 
@@ -154,28 +153,28 @@ def test_bare_block_inside_call_body_is_unwrapped():
 #  Module definitions
 
 
-def test_module_definition_body_is_a_list():
-    # QUIRKS.md: a module body is a list of statements, with variable bindings
-    # and module calls side by side.
+def test_module_definition_body_is_a_scope_call():
+    # QUIRKS.md: a module body is a scope call whose children are statements,
+    # with variable bindings and module calls side by side.
     scope = parse_scad("module x() { aaa(); bbb(); x = 10; }")
-    assert len(scope) == 1
-    definition = scope[0]
+    assert len(scope.children) == 1
+    definition = scope.children[0]
     assert isinstance(definition, ModuleDefinitionStatement)
     assert definition.name == "x"
-    assert isinstance(definition.body, list)
-    assert [type(s).__name__ for s in definition.body] == [
+    assert isinstance(definition.body, ModuleCallStatement)
+    assert [type(s).__name__ for s in definition.body.children] == [
         "ModuleCallStatement",
         "ModuleCallStatement",
         "VariableBindingStatement",
     ]
-    assert isinstance(definition.body[2], VariableBindingStatement)
-    assert definition.body[2].name == "x"
-    assert definition.body[2].value == NumberLiteral(10.0)
+    assert isinstance(definition.body.children[2], VariableBindingStatement)
+    assert definition.body.children[2].name == "x"
+    assert definition.body.children[2].value == NumberLiteral(10.0)
 
 
 def test_module_definition_parameters():
     scope = parse_scad("module Foo(a, b=2) { cube(a); }")
-    definition = scope[0]
+    definition = scope.children[0]
     assert isinstance(definition, ModuleDefinitionStatement)
     assert set(definition.parameters) == {"a", "b"}
     assert definition.parameters["a"] == Assignment("a", Undefined())
@@ -185,18 +184,18 @@ def test_module_definition_parameters():
 def test_module_definition_braced_less_body():
     # A brace-less body is a simplified body of one statement.
     scope = parse_scad("module x() cube(1);")
-    definition = scope[0]
+    definition = scope.children[0]
     assert isinstance(definition, ModuleDefinitionStatement)
-    assert len(definition.body) == 1
-    assert isinstance(definition.body[0], ModuleCallStatement)
-    assert definition.body[0].module == "cube"
+    assert len(definition.body.children) == 1
+    assert isinstance(definition.body.children[0], ModuleCallStatement)
+    assert definition.body.children[0].module == "cube"
 
 
 def test_module_definition_inside_block_scopes_to_block():
     scope = parse_scad("{ module Bar() { cube(1); } Bar(); }")
     # Bare block is transparent, so the definition and call land in the
     # top-level scope.
-    assert [type(s).__name__ for s in scope] == [
+    assert [type(s).__name__ for s in scope.children] == [
         "ModuleDefinitionStatement",
         "ModuleCallStatement",
     ]
@@ -232,8 +231,8 @@ def test_let_multiple_bindings():
 
 def test_assignment_is_variable_binding_statement():
     scope = parse_scad("var1 = (10+20)/3;")
-    assert len(scope) == 1
-    binding = scope[0]
+    assert len(scope.children) == 1
+    binding = scope.children[0]
     assert isinstance(binding, VariableBindingStatement)
     assert binding.name == "var1"
     assert binding.value == BinaryOp(
@@ -246,11 +245,11 @@ def test_assignment_is_variable_binding_statement():
 def test_assignment_inside_block_scopes_to_enclosing_scope():
     # A bare block is transparent, so `local` binds in the top-level scope.
     scope = parse_scad("{ local = 7; cube(local); }")
-    assert [type(s).__name__ for s in scope] == [
+    assert [type(s).__name__ for s in scope.children] == [
         "VariableBindingStatement",
         "ModuleCallStatement",
     ]
-    binding = scope[0]
+    binding = scope.children[0]
     assert isinstance(binding, VariableBindingStatement)
     assert binding.name == "local"
     assert binding.value == NumberLiteral(7.0)
@@ -320,7 +319,7 @@ def test_comments_are_ignored():
         "comment */\n"
         "sphere(2);\n"
     )
-    assert [s.module for s in scope] == ["cube", "sphere"]
+    assert [s.module for s in scope.children] == ["cube", "sphere"]
 
 
 ## =========================================================================

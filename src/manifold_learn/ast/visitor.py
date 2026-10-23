@@ -21,17 +21,19 @@ from manifold_learn.ast.expression import (
 class AstOpenSCADVisitor(OpenSCADVisitor):
     """Build a uniform Statement tree from the OpenSCAD parse tree.
 
-    A scope is a plain ``list[Statement]``. Bare ``{}`` blocks are transparent:
-    ``visitBlock`` returns the statements inside as a list, which the caller
-    splices into its own scope. No ``block`` node exists.
+    A scope is a ``ModuleCallStatement`` whose ``children`` hold the
+    statements: the root scope is an artificial ``union`` call, a module body
+    is a ``union`` call, and ``let`` is a ``let`` call. Bare ``{}`` blocks are
+    transparent: ``visitBlock`` returns the statements inside as a list, which
+    the caller splices into its own scope. No ``block`` node exists.
     """
 
     # Visit a parse tree produced by OpenSCADParser#start.
-    def visitStart(self, ctx: OpenSCADParser.StartContext) -> list[Statement]:
+    def visitStart(self, ctx: OpenSCADParser.StartContext) -> ModuleCallStatement:
         scope: list[Statement] = []
         for statement in ctx.statement():
             scope.extend(self.visit(statement))
-        return scope
+        return ModuleCallStatement("union", children=scope)
 
     # Visit a parse tree produced by OpenSCADParser#statement.
     def visitStatement(self, ctx: OpenSCADParser.StatementContext) -> list[Statement]:
@@ -91,10 +93,12 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
         return node
 
     # Visit a parse tree produced by OpenSCADParser#body.
-    def visitBody(self, ctx: OpenSCADParser.BodyContext) -> list[Statement]:
+    def visitBody(self, ctx: OpenSCADParser.BodyContext) -> ModuleCallStatement:
         if ctx.block() is not None:
-            return self.visit(ctx.block())
-        return [self.visit(ctx.moduleCallSeq())]
+            children = self.visit(ctx.block())
+        else:
+            children = [self.visit(ctx.moduleCallSeq())]
+        return ModuleCallStatement("union", children=children)
 
     # Visit a parse tree produced by OpenSCADParser#block.
     def visitBlock(self, ctx: OpenSCADParser.BlockContext) -> list[Statement]:

@@ -6,8 +6,8 @@ from manifold_learn.ast.children_module import ChildrenModule
 from manifold_learn.ast.environment import Environment
 from manifold_learn.ast.expression import Assignment, Literal
 from manifold_learn.ast.module_definition import Geometry, ModuleDefinition
-from manifold_learn.ast.invocation import ChildInvocation, EvalContext
-from manifold_learn.ast.statement import Statement
+from manifold_learn.ast.invocation import EvalContext
+from manifold_learn.ast.statement import ModuleCallStatement
 
 
 class ModuleClosure(ModuleDefinition, Generic[Geometry]):
@@ -16,7 +16,7 @@ class ModuleClosure(ModuleDefinition, Generic[Geometry]):
         self,
         name: str,
         parameters: Mapping[str, Assignment],
-        body: list[Statement],
+        body: ModuleCallStatement,
         env: Environment,
     ):
         self._name = name
@@ -40,8 +40,7 @@ class ModuleClosure(ModuleDefinition, Generic[Geometry]):
             dynamic_parent=ctx.env,
             is_module_scope=True,
         )
-        body_invocation = ChildInvocation(self._body, body_env)
-        return ctx.evaluate(body_invocation)
+        return ctx.evaluate_scope(self._body, body_env)
 
     @property
     def name(self) -> str:

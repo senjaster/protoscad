@@ -6,22 +6,22 @@ from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from manifold_learn.ast.environment import Environment
-    from manifold_learn.ast.statement import ModuleCallStatement, Statement
+    from manifold_learn.ast.statement import ModuleCallStatement
 
 
 @dataclass
 class ChildInvocation:
-    """A body held unevaluated, together with the environment it must run in.
+    """A child module call held unevaluated, together with the environment
+    it must run in.
 
-    ``node`` is either a single module call (a child passed to ``children()``
-    or ``evaluate_children()``) or a whole scope (a ``list[Statement]``, e.g. a
-    user module body). Modules decide whether and when to evaluate their
-    children (``EvalContext.evaluate_children``). That is what lets ``if``,
-    ``for`` and ``children()`` exist as ordinary modules instead of evaluator
-    special cases.
+    ``node`` is a single module call (a child passed to ``children()`` or
+    ``evaluate_children()``). Modules decide whether and when to evaluate
+    their children (``EvalContext.evaluate_children``). That is what lets
+    ``if``, ``for`` and ``children()`` exist as ordinary modules instead of
+    evaluator special cases.
     """
 
-    node: ModuleCallStatement | list[Statement]
+    node: ModuleCallStatement
     env: Environment
 
 
@@ -33,6 +33,7 @@ class EvalContext:
     children: Sequence[ChildInvocation]
     env: Environment
     evaluate: Callable[[ChildInvocation], Any]
+    evaluate_scope: Callable[[ModuleCallStatement, Environment], Any]
 
     def evaluate_children(self) -> list[Any]:
         """Evaluate every child invocation, flattening multi-geometry

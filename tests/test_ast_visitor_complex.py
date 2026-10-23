@@ -6,7 +6,6 @@ from antlr4.error.ErrorListener import ErrorListener
 from manifold_learn.ast.expression import ArrayLiteral, BinaryOp, NumberLiteral, Variable
 from manifold_learn.ast.statement import (
     ModuleCallStatement,
-    Statement,
     VariableBindingStatement,
 )
 from manifold_learn.ast.visitor import AstOpenSCADVisitor
@@ -53,8 +52,8 @@ width = 100;
 """
 
 
-def parse_scad(source: str) -> list[Statement]:
-    """Parse source via the OpenSCAD grammar, returning a scope (statement list)."""
+def parse_scad(source: str) -> ModuleCallStatement:
+    """Parse source via the OpenSCAD grammar, returning the root scope call."""
     lexer = OpenSCADLexer(InputStream(source))
     stream = CommonTokenStream(lexer)
     parser = OpenSCADParser(stream)
@@ -62,8 +61,8 @@ def parse_scad(source: str) -> list[Statement]:
     return AstOpenSCADVisitor().visit(tree)
 
 
-def parse_scad_with_errors(source: str) -> tuple[list[Statement], list[str]]:
-    """Parse source, returning (scope, list of syntax error messages)."""
+def parse_scad_with_errors(source: str) -> tuple[ModuleCallStatement, list[str]]:
+    """Parse source, returning (root scope call, list of syntax error messages)."""
     errors: list[str] = []
 
     class Collector(ErrorListener):
@@ -82,14 +81,14 @@ def parse_scad_with_errors(source: str) -> tuple[list[Statement], list[str]]:
     return scope, errors
 
 
-def find_modules(scope: list[Statement], name: str) -> list[ModuleCallStatement]:
+def find_modules(scope: ModuleCallStatement, name: str) -> list[ModuleCallStatement]:
     """Return all descendant module-call statements (depth-first) with the given name."""
     found = []
-    for statement in scope:
+    for statement in scope.children:
         if isinstance(statement, ModuleCallStatement):
             if statement.module == name:
                 found.append(statement)
-            found.extend(find_modules(statement.children, name))
+            found.extend(find_modules(statement, name))
     return found
 
 
@@ -103,7 +102,7 @@ def test_top_level_statements_are_scope_entries():
     # Top-level: three variable bindings, the scale chain, the let, the
     # rotate chain, a redefinition of width, and (from the trailing bare
     # block, which is transparent) a local redefinition and a box call.
-    assert [type(s).__name__ for s in scope] == [
+    assert [type(s).__name__ for s in scope.children] == [
         "VariableBindingStatement",
         "VariableBindingStatement",
         "VariableBindingStatement",
@@ -114,7 +113,7 @@ def test_top_level_statements_are_scope_entries():
         "VariableBindingStatement",
         "ModuleCallStatement",
     ]
-    assert [s.module for s in scope if isinstance(s, ModuleCallStatement)] == [
+    assert [s.module for s in scope.children if isinstance(s, ModuleCallStatement)] == [
         "scale",
         "let",
         "rotate",
@@ -124,7 +123,7 @@ def test_top_level_statements_are_scope_entries():
 
 def test_chained_scale_translate_box_nesting():
     scope = parse_scad(COMPLEX_SOURCE)
-    scale = scope[3]
+    scale = scope.children[3]
     assert isinstance(scale, ModuleCallStatement)
     assert scale.module == "scale"
     # Array literal builds a list of element expressions
@@ -184,7 +183,7 @@ def test_chained_scale_translate_box_nesting():
 
 def test_let_binding_becomes_variable_binding_statement():
     scope = parse_scad(COMPLEX_SOURCE)
-    let_node = scope[4]
+    let_node = scope.children[4]
     assert isinstance(let_node, ModuleCallStatement)
     assert let_node.module == "let"
 
@@ -215,7 +214,7 @@ def test_top_level_assignments_are_variable_binding_statements():
     # separate statements (last-definition-wins is an evaluator concern).
     assert [
         (s.name, s.value)
-        for s in scope
+        for s in scope.children
         if isinstance(s, VariableBindingStatement) and s.name == "width"
     ] == [
         ("width", NumberLiteral(10.0)),
@@ -226,7 +225,7 @@ def test_top_level_assignments_are_variable_binding_statements():
 
 def test_rotate_chain_uses_top_level_variable():
     scope = parse_scad(COMPLEX_SOURCE)
-    rotate = scope[5]
+    rotate = scope.children[5]
     assert isinstance(rotate, ModuleCallStatement)
     assert rotate.module == "rotate"
     assert rotate.positional_args == [
@@ -257,7 +256,7 @@ def test_shadowing_block_splices_redefinition_and_box():
     # call. Resolution semantics are covered by the evaluator tests; here we
     # check the tree carries both the redefinition and the reference.
     scope = parse_scad(COMPLEX_SOURCE)
-    shadow_redefinition = scope[7]
+    shadow_redefinition = scope.children[7]
     assert isinstance(shadow_redefinition, VariableBindingStatement)
     assert shadow_redefinition.name == "width"
     assert shadow_redefinition.value == BinaryOp(
@@ -265,7 +264,7 @@ def test_shadowing_block_splices_redefinition_and_box():
         Variable("width"),
         NumberLiteral(2.0),
     )
-    box = scope[8]
+    box = scope.children[8]
     assert isinstance(box, ModuleCallStatement)
     assert box.module == "box"
     assert box.positional_args == [Variable("width")]

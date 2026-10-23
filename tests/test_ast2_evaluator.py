@@ -10,7 +10,7 @@ from manifold_learn.ast.invocation import ChildInvocation, EvalContext
 from manifold_learn.ast.manifold import CubeModule, TranslateModule
 from manifold_learn.ast.module_definition import BuiltinModule
 from manifold_learn.ast.evaluator import StatementEvaluator
-from manifold_learn.ast.statement import Statement
+from manifold_learn.ast.statement import ModuleCallStatement
 from manifold_learn.ast.visitor import AstOpenSCADVisitor
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
@@ -19,7 +19,7 @@ from antlr4 import CommonTokenStream, InputStream
 MARKER_GEOMETRY = Manifold.cube([1.0, 1.0, 1.0])
 
 
-def parse_scad(source: str) -> list[Statement]:
+def parse_scad(source: str) -> ModuleCallStatement:
     lexer = OpenSCADLexer(InputStream(source))
     stream = CommonTokenStream(lexer)
     parser = OpenSCADParser(stream)

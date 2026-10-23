@@ -31,18 +31,20 @@ class StatementEvaluator:
         # "union" is the implicit union backing the top level and module bodies.
         self._modules.setdefault("union", union)
 
-    def evaluate(self, scope: list[Statement]) -> Any:
+    def evaluate(self, scope: ModuleCallStatement) -> Any:
         env = Environment(modules=self._modules)
         return self._evaluate_scope(scope, env)
 
     def _evaluate(self, invocation: ChildInvocation) -> Any:
-        node = invocation.node
-        if isinstance(node, list):
-            return self._evaluate_scope(node, invocation.env)
-        return self._instantiate(node, invocation.env)
+        return self._instantiate(invocation.node, invocation.env)
 
-    def _evaluate_scope(self, scope: list[Statement], env: Environment) -> Any:
-        """Evaluate a scope declaratively: variables, then modules, then calls."""
+    def _evaluate_scope(self, scope_call: ModuleCallStatement, env: Environment) -> Any:
+        """Evaluate a scope declaratively: variables, then modules, then calls.
+
+        ``scope_call`` is a ``ModuleCallStatement`` whose ``children`` are the
+        scope's statements (the root, a module body, or ``let``).
+        """
+        scope = scope_call.children
         scope_env = self._build_scope_env(scope, env)
         results: list[Any] = []
         for statement in scope:
@@ -86,7 +88,7 @@ class StatementEvaluator:
         # `let` is a scope: its children (leading variable bindings plus the
         # body) are evaluated declaratively, mirroring a module body.
         if node.module == "let":
-            return self._evaluate_scope(node.children, env)
+            return self._evaluate_scope(node, env)
 
         # Resolve the module in the caller's scope, not in the scope the call
         # itself introduces for its children.
@@ -103,5 +105,11 @@ class StatementEvaluator:
             if isinstance(statement, ModuleCallStatement)
         ]
         return module_def.instantiate(
-            EvalContext(args=args, children=children, env=body_env, evaluate=self._evaluate)
+            EvalContext(
+                args=args,
+                children=children,
+                env=body_env,
+                evaluate=self._evaluate,
+                evaluate_scope=self._evaluate_scope,
+            )
         )
