@@ -188,3 +188,104 @@ def test_for_loop_body_sees_surrounding_scope():
         [ForLoopModule(), probe],
     )
     assert probe.calls == [{"value": 5.0}]
+
+# --- user-defined modules ---
+
+
+def test_user_module_call_evaluates_body():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Foo() { probe(1); } Foo();",
+        [probe],
+    )
+    assert probe.calls == [{"value": 1.0}]
+
+
+def test_user_module_parameters_bind_to_body():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Foo(a, b=2) { probe(a); probe(b); } Foo(10);",
+        [probe],
+    )
+    assert probe.calls == [{"value": 10.0}, {"value": 2.0}]
+
+
+def test_user_module_body_sees_surrounding_scope():
+    # A module defined at top level sees top-level variables lexically.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "width = 5; module Foo() { probe(width); } Foo();",
+        [probe],
+    )
+    assert probe.calls == [{"value": 5.0}]
+
+
+def test_user_module_does_not_see_call_site_plain_variables():
+    # Ordinary variables are lexical: a binding at the call site (in a
+    # different scope than the definition) is not visible inside the body.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Foo() { probe(x); } { x = 99; Foo(); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": None}]
+
+
+def test_user_module_does_see_call_site_special_variables():
+    # Special variables are dynamic: a binding at the call site (in a
+    # different scope than the definition) is visible inside the body.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "$x = 100; module Foo() { probe($x); } { $x = 99; Foo(); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 99}]
+
+def test_user_module_defined_inside_block_is_scoped_to_block():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "{ module Bar() { probe(1); } Bar(); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 1.0}]
+    # Bar is not visible outside the block.
+    with pytest.raises(ValueError, match="Unknown module: 'Bar'"):
+        evaluate_with_modules(
+            "{ module Bar() { probe(1); } } Bar();",
+            [probe],
+        )
+
+
+def test_user_module_body_uses_geometry_modules():
+    # A user module that wraps a built-in geometry module produces geometry.
+    result = evaluate_with_modules(
+        "module Box() { cube([1,1,1]); } Box();",
+        [CubeModule(), TranslateModule()],
+    )
+    assert result.volume() == pytest.approx(1.0)
+
+
+def test_user_module_children_module_works():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { children(0); } Bar() { probe(50); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 50}]
+
+
+def test_user_module_children_module_ignores_missing_child():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { children(10); } Bar() { probe(50); }",
+        [probe],
+    )
+    assert probe.calls == []
+
+def test_user_module_children_module_picks_proper_child():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { children(1); } Bar() { probe(10); probe(20); probe(30); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 20}]

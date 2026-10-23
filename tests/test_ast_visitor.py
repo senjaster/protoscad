@@ -3,7 +3,8 @@ from __future__ import annotations
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
-from manifold_learn.ast.expression import ArrayLiteral, Assignment, BinaryOp, NumberLiteral, Paren, Variable
+from manifold_learn.ast.expression import ArrayLiteral, Assignment, BinaryOp, NumberLiteral, Paren, Undefined, Variable
+from manifold_learn.ast.module_definition import ModuleDefinitionNode
 from manifold_learn.ast.tree_node import TreeNode
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
@@ -116,17 +117,38 @@ def test_let_binding_variable_visible_to_child():
     assert cube.positional_args == [Variable("x")]
 
 
-def test_module_definition_produces_tree_node():
+def test_module_definition_registers_on_scope():
     root = parse_scad(
         "module Foo(a, b=2) { cube(a); sphere(b); }"
     )
-    # A module definition is represented as a tree node named after the
-    # module, with its body attached as a child.
-    assert len(root.children) == 1
-    foo = root.children[0]
-    assert foo.module == "Foo"
-    assert foo.positional_args == []
-    assert foo.named_args == {}
+    # A module definition registers on the enclosing scope's `modules`, not
+    # as a child node. The body is held inside the definition.
+    assert root.children == []
+    assert set(root.modules) == {"Foo"}
+    foo = root.modules["Foo"]
+    assert foo.name == "Foo"
+    # Parameters are the module's formal parameters as assignments
+    assert set(foo.parameters) == {"a", "b"}
+    assert foo.parameters["a"] == Assignment("a", Undefined())
+    assert foo.parameters["b"] == Assignment("b", NumberLiteral(2.0))
+    # The body is the module definition's moduleCallSeq subtree: here a block
+    # holding the cube and sphere calls.
+    assert foo.body.module == "block"
+    assert [c.module for c in foo.body.children] == ["cube", "sphere"]
+    cube = foo.body.children[0]
+    assert cube.positional_args == [Variable("a")]
+    sphere = foo.body.children[1]
+    assert sphere.positional_args == [Variable("b")]
+
+
+def test_module_definition_inside_block_scopes_to_block():
+    root = parse_scad("{ module Bar() { cube(1); } Bar(); }")
+    block = root.children[0]
+    # The module definition registers on the block, not the root
+    assert set(block.modules) == {"Bar"}
+    assert root.modules == {}
+    # The call to Bar is a child of the block
+    assert [c.module for c in block.children] == ["Bar"]
 
 
 def test_assignment_registers_variable_on_scope():

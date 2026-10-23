@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
+from manifold_learn.ast.children_module import ChildrenModule
+
 if TYPE_CHECKING:
     from manifold_learn.ast.expression import Assignment
-    from manifold_learn.ast.module_definition import ModuleDefinition
+    from manifold_learn.ast.module_definition import ModuleDefinition, ChildInvocation
 
 
 class Environment:
@@ -56,7 +58,7 @@ class Environment:
     def extend(self, variables: dict[str, Assignment] | None = None) -> Environment:
         """A nested scope: its names shadow the parent's; the dynamic chain
         is inherited unchanged (nesting does not cross a module boundary)."""
-        return cls(variables=variables, parent=self, dynamic_parent=self._dynamic_parent)
+        return Environment(variables=variables, parent=self, dynamic_parent=self._dynamic_parent)
 
     def define_variable(self, assignment: Assignment) -> None:
         self._variables[assignment.name] = assignment

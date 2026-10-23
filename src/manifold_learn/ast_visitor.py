@@ -1,5 +1,6 @@
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 from manifold_learn.grammar.OpenSCADVisitor import OpenSCADVisitor
+from manifold_learn.ast.module_definition import ModuleDefinitionNode
 from manifold_learn.ast.tree_node import TreeNode
 from manifold_learn.ast.expression import (
     ArrayLiteral,
@@ -25,11 +26,14 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
     def _register_statement(self, scope: TreeNode, result):
         """Add a visited statement to the scope node.
 
-        An assignment defines a variable on the scope node; any other result
-        is a module-call subtree added as a child.
+        An assignment defines a variable on the scope node; a module
+        definition registers a module on the scope node; any other result is
+        a module-call subtree added as a child.
         """
         if isinstance(result, Assignment):
             scope.assign_variable(result)
+        elif isinstance(result, ModuleDefinitionNode):
+            scope.define_module(result)
         elif result is not None:
             scope.add_child(result)
 
@@ -110,14 +114,14 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
 
     # Visit a parse tree produced by OpenSCADParser#moduleDefinition.
-    def visitModuleDefinition(self, ctx:OpenSCADParser.ModuleDefinitionContext) -> TreeNode:
-        node = TreeNode(ctx.IDENT().getText(), positional_args=[], named_args={})
+    def visitModuleDefinition(self, ctx:OpenSCADParser.ModuleDefinitionContext) -> ModuleDefinitionNode:
+        name = ctx.IDENT().getText()
+        parameters = {}
         if ctx.paramList() is not None:
             for param in self.visit(ctx.paramList()):
-                node.assign_variable(param)
+                parameters[param.name] = param
         body = self.visit(ctx.moduleCallSeq())
-        node.add_child(body)
-        return node
+        return ModuleDefinitionNode(name=name, parameters=parameters, body=body)
 
 
     # Visit a parse tree produced by OpenSCADParser#paramList.

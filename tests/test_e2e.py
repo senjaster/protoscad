@@ -45,7 +45,7 @@ def test_translate_and_cubes_union(tmp_path):
 
 
 def test_let_and_top_level_variables_end_to_end():
-    result = evaluate("s = 2; let(offset = 5) { translate([offset,0,0]) cube(s); } cube(1);")
+    result = evaluate("s = 2; let(offset = -1) { translate([offset,0,0]) cube(s); } cube(1);")
     # The unit cube sits fully inside the shifted 2-cube: union volume 8
     assert result.volume() == pytest.approx(8.0)
 

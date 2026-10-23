@@ -23,6 +23,22 @@ class NumberLiteral(Expression):
 
 
 @dataclass
+class Literal(Expression):
+    """A constant value computed at the call site.
+
+    Used to expose a bound module parameter to the module body: the argument
+    expression is evaluated in the caller's scope, and the resulting value is
+    wrapped here so the body sees a concrete constant rather than re-resolving
+    the original (caller-scoped) expression.
+    """
+
+    value: Any
+
+    def evaluate(self, env: "Environment") -> Any:
+        return self.value
+
+
+@dataclass
 class Variable(Expression):
     name: str
 

@@ -72,7 +72,7 @@ EQ          : '=' ;
 // ANTLR breaks ties by rule order, so LET wins. Longer words like `letter`
 // still lex as IDENT (longest-match takes precedence).
 LET         : 'let' ;
-IDENT       : [a-zA-Z_][a-zA-Z0-9_]* ;
+IDENT       : '$'? [a-zA-Z_][a-zA-Z0-9_]* ;
 NUMBER      : '-'? [0-9]+ ('.' [0-9]+)? ;
 STRING      : '"' (~["\r\n])* '"' ;
 

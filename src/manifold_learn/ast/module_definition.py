@@ -31,6 +31,21 @@ class ChildInvocation:
 
 
 @dataclass
+class ModuleDefinitionNode:
+    """A user-defined module as pure AST data.
+
+    Mirrors the shape of ``UserDefinedModule`` but without the definition-site
+    environment, which is only known at evaluation time. The evaluator turns
+    one of these into a ``UserDefinedModule`` bound to the scope where the
+    ``module`` statement appeared.
+    """
+
+    name: str
+    parameters: Mapping[str, Assignment]
+    body: TreeNode
+
+
+@dataclass
 class EvalContext:
     """Everything a module may use when instantiated."""
 
