@@ -19,8 +19,7 @@ def union_geometries(geometries: Sequence[Manifold]) -> Manifold | None:
 class UnionModule(BuiltinModule):
     """Implicit union of all children.
 
-    Backs bare blocks, the top level, and ``let``, as well as the
-    user-visible ``union()``.
+    Backs bare blocks, the top level, and the user-visible ``union()``.
     """
 
     def instantiate(self, ctx: EvalContext) -> Manifold | None:
@@ -29,6 +28,22 @@ class UnionModule(BuiltinModule):
     @property
     def name(self) -> str:
         return "union"
+
+    @property
+    def parameters(self) -> Mapping[str, Assignment]:
+        return {}
+
+
+class LetModule(BuiltinModule):
+    """``let`` is a scope: its leading variable bindings plus a body are
+    evaluated declaratively and unioned — the same as a ``union`` module."""
+
+    def instantiate(self, ctx: EvalContext) -> Manifold | None:
+        return union_geometries(ctx.evaluate_children())
+
+    @property
+    def name(self) -> str:
+        return "let"
 
     @property
     def parameters(self) -> Mapping[str, Assignment]:

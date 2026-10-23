@@ -22,7 +22,8 @@ class ChildrenModule(BuiltinModule):
             return None
         if i >= len(self._children):
             return None
-        return ctx.evaluate(self._children[i])
+        child_invocation = self._children[i]
+        return ctx.evaluate(child_invocation.node, child_invocation.env)
 
     @property
     def name(self) -> str:

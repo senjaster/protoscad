@@ -6,8 +6,10 @@ from typing import Generic, TypeVar, TYPE_CHECKING
 
 from manifold_learn.ast.expression import Assignment, Undefined
 
+
 if TYPE_CHECKING:
     from manifold_learn.ast.expression import Expression
+    from manifold_learn.ast.invocation import EvalContext
 
 Geometry = TypeVar("Geometry")
 

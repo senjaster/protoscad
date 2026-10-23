@@ -40,7 +40,7 @@ class ModuleClosure(ModuleDefinition, Generic[Geometry]):
             dynamic_parent=ctx.env,
             is_module_scope=True,
         )
-        return ctx.evaluate_scope(self._body, body_env)
+        return ctx.evaluate(self._body, body_env)
 
     @property
     def name(self) -> str:
@@ -49,3 +49,7 @@ class ModuleClosure(ModuleDefinition, Generic[Geometry]):
     @property
     def parameters(self) -> Mapping[str, Assignment]:
         return self._parameters
+
+    @classmethod
+    def from_definition(cls, module: ModuleDefinition, env: Environment) -> ModuleClosure:
+        return cls(module.name, module.parameters, module.body, env)

@@ -55,9 +55,9 @@ class ForLoopModule(BuiltinModule):
     def instantiate(self, ctx: EvalContext) -> list[Manifold]:
         results = []
         for value in ctx.args["values"]:
-            env = ctx.env.extend({"i": Assignment("i", NumberLiteral(value))})
+            env = ctx.env.extend_variables({"i": Assignment("i", NumberLiteral(value))})
             for invocation in ctx.children:
-                results.append(ctx.evaluate(ChildInvocation(invocation.node, env)))
+                results.append(ctx.evaluate(invocation.node, env))
         return results
 
     @property

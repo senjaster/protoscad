@@ -54,7 +54,7 @@ def test_shadowing_references_parent_scope_on_rhs():
 
 def test_extend_inherits_variables_and_shadows():
     outer = make_env(x=1.0, y=2.0)
-    inner = outer.extend({"y": Assignment("y", NumberLiteral(20.0))})
+    inner = outer.extend_variables({"y": Assignment("y", NumberLiteral(20.0))})
     assert inner.lookup_variable("x") == 1.0
     assert inner.lookup_variable("y") == 20.0
     assert outer.lookup_variable("y") == 2.0
@@ -93,7 +93,7 @@ def test_dollar_variable_resolves_lexically_within_a_scope_tree():
     # without any module boundary involved.
     outer = make_env()
     outer.define_variable(Assignment("$fn", NumberLiteral(50.0)))
-    inner = outer.extend()
+    inner = outer.extend_variables()
     assert inner.lookup_variable("$fn") == 50.0
 
 
@@ -104,7 +104,7 @@ def test_dollar_variable_crosses_module_boundary_via_dynamic_link():
     call_scope = make_env()
     call_scope.define_variable(Assignment("$fn", NumberLiteral(50.0)))
     body = Environment.for_module_body({}, definition_scope, call_scope)
-    reader = body.extend()
+    reader = body.extend_variables()
     assert reader.lookup_variable("$fn") == 50.0
 
 

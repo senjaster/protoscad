@@ -4,7 +4,6 @@ from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from manifold_learn.ast.expression import Assignment
-    from manifold_learn.ast.invocation import ChildInvocation
     from manifold_learn.ast.module_definition import ModuleDefinition
 
 
@@ -54,10 +53,16 @@ class Environment:
             is_module_scope=True,
         )
 
-    def extend(self, variables: dict[str, Assignment] | None = None) -> Environment:
+    def extend_variables(self, variables: dict[str, Assignment] | None = None) -> Environment:
         """A nested scope: its names shadow the parent's; the dynamic chain
         is inherited unchanged (nesting does not cross a module boundary)."""
         return Environment(variables=variables, parent=self, dynamic_parent=self._dynamic_parent)
+
+    def extend_modules(self, modules: dict[str, ModuleDefinition] | None = None) -> Environment:
+        """A nested scope: its names shadow the parent's; the dynamic chain
+        is inherited unchanged (nesting does not cross a module boundary)."""
+        return Environment(modules=modules, parent=self, dynamic_parent=self._dynamic_parent)
+
 
     def define_variable(self, assignment: Assignment) -> None:
         self._variables[assignment.name] = assignment

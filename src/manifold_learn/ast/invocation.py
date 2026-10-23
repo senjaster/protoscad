@@ -6,7 +6,7 @@ from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from manifold_learn.ast.environment import Environment
-    from manifold_learn.ast.statement import ModuleCallStatement
+    from manifold_learn.ast import ModuleCallStatement
 
 
 @dataclass
@@ -32,15 +32,14 @@ class EvalContext:
     args: Mapping[str, Any]
     children: Sequence[ChildInvocation]
     env: Environment
-    evaluate: Callable[[ChildInvocation], Any]
-    evaluate_scope: Callable[[ModuleCallStatement, Environment], Any]
+    evaluate: Callable[[ModuleCallStatement, Environment], Any]
 
     def evaluate_children(self) -> list[Any]:
         """Evaluate every child invocation, flattening multi-geometry
         results and dropping empty ones."""
         results: list[Any] = []
         for invocation in self.children:
-            result = self.evaluate(invocation)
+            result = self.evaluate(invocation.node, invocation.env)
             if result is None:
                 continue
             if isinstance(result, list):
