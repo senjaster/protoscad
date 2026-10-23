@@ -1,39 +1,80 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-
 from abc import ABC, abstractmethod
-from typing import Generic, Sequence, TypeVar, TYPE_CHECKING
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any, Generic, TypeVar, TYPE_CHECKING
 
 from manifold_learn.ast.expression import Assignment, Undefined
 
 if TYPE_CHECKING:
+    from manifold_learn.ast.environment import Environment
     from manifold_learn.ast.expression import Expression
     from manifold_learn.ast.tree_node import TreeNode
-
 
 Geometry = TypeVar("Geometry")
 
 
+@dataclass
+class ChildInvocation:
+    """A child module call held unevaluated, together with the environment
+    it must run in.
+
+    Modules decide whether and when to evaluate their children
+    (``EvalContext.evaluate_children``). That is what lets ``if``, ``for``
+    and ``children()`` exist as ordinary modules instead of evaluator
+    special cases.
+    """
+
+    node: TreeNode
+    env: Environment
+
+
+@dataclass
+class EvalContext:
+    """Everything a module may use when instantiated."""
+
+    args: Mapping[str, Any]
+    children: Sequence[ChildInvocation]
+    env: Environment
+    evaluate: Callable[[ChildInvocation], Any]
+
+    def evaluate_children(self) -> list[Any]:
+        """Evaluate every child invocation, flattening multi-geometry
+        results and dropping empty ones."""
+        results: list[Any] = []
+        for invocation in self.children:
+            result = self.evaluate(invocation)
+            if result is None:
+                continue
+            if isinstance(result, list):
+                results.extend(result)
+            else:
+                results.append(result)
+        return results
+
+
 class ModuleDefinition(ABC, Generic[Geometry]):
-    """A module that can be invoked to produce a geometry object.
+    """A module that can be invoked to produce geometry.
 
     Two concrete kinds exist:
 
-    - ``BuiltinModule``: auto-registered at the top-level scope for the
+    - ``BuiltinModule``: registered at the top-level scope for the
       primitives and operations shipped with the language (e.g. ``cube``,
       ``cylinder``, ``difference``).
-    - ``UserModule``: defined in source via ``module Name(...) { ... }`` and
-      carrying its own AST subtree.
+    - ``UserDefinedModule``: defined in source via ``module Name(...) { ... }``
+      and carrying its own AST subtree.
 
     Both share a name, the formal parameters as assignments (an ``Undefined``
-    value marks a required parameter with no default), and an ``eval`` method
-    that combines the evaluated child geometries into the final geometry.
+    value marks a required parameter with no default), and an ``instantiate``
+    method that produces geometry, deciding for itself which children to
+    evaluate.
     """
 
     @abstractmethod
-    def eval(self, scope: TreeNode, children: Sequence[Geometry]) -> Geometry:
-        """Return the geometry produced from the evaluated child geometries."""
+    def instantiate(self, ctx: EvalContext) -> Geometry | list[Geometry] | None:
+        """Instantiate this module. May return a single geometry, several
+        (e.g. a loop unrolling its body), or none."""
         raise NotImplementedError
 
     @property

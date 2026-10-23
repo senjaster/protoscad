@@ -3,7 +3,7 @@ from __future__ import annotations
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
-from manifold_learn.ast.expression import ArrayLiteral, BinaryOp, NumberLiteral, Paren, Variable
+from manifold_learn.ast.expression import ArrayLiteral, Assignment, BinaryOp, NumberLiteral, Paren, Variable
 from manifold_learn.ast.tree_node import TreeNode
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
@@ -105,16 +105,15 @@ def test_let_binding_variable_visible_to_child():
     root = parse_scad("let(x=10) { cube(x); }")
     let_node = single_child(root)
     assert let_node.module == "let"
-    # Binding stored as a variable on the let node
-    assert let_node.eval_variable("x") == 10.0
+    # Binding stored as variable data on the let node (the evaluator turns
+    # it into an Environment when instantiating)
+    assert let_node.variables == {"x": Assignment("x", NumberLiteral(10.0))}
     # The block body is a child of the let node
     block = let_node.children[0]
     assert block.module == "block"
     cube = block.children[0]
     assert cube.module == "cube"
-    # Child resolves the variable through the parent scope chain
     assert cube.positional_args == [Variable("x")]
-    assert cube.eval_variable("x") == 10.0
 
 
 def test_module_definition_produces_tree_node():
@@ -135,7 +134,10 @@ def test_assignment_registers_variable_on_scope():
     # An assignment defines a variable on the enclosing scope rather than
     # adding a child node.
     assert root.children == []
-    assert root.eval_variable("var1") == 10.0
+    assert root.variables["var1"] == Assignment(
+        "var1",
+        BinaryOp("/", Paren(BinaryOp("+", NumberLiteral(10.0), NumberLiteral(20.0))), NumberLiteral(3.0)),
+    )
 
 
 def test_assignment_inside_block_scopes_to_block():
@@ -143,12 +145,11 @@ def test_assignment_inside_block_scopes_to_block():
     root = parse_scad("{ local = 7; cube(local); }")
     block = root.children[0]
     assert block.module == "block"
-    assert block.eval_variable("local") == 7.0
-    # The variable is scoped to the block, not visible at the top level
-    assert root.eval_variable("local") is None
+    assert block.variables == {"local": Assignment("local", NumberLiteral(7.0))}
+    # The variable is scoped to the block, not registered at the top level
+    assert root.variables == {}
     cube = block.children[0]
     assert cube.positional_args == [Variable("local")]
-    assert cube.eval_variable("local") == 7.0
 
 
 def test_let_expression_shapes():
@@ -156,10 +157,12 @@ def test_let_expression_shapes():
     root = parse_scad("let(x = (10 + 20) / 3) { cube(x); }")
     let_node = root.children[0]
     assert let_node.module == "let"
-    assert let_node.eval_variable("x") == 10.0
+    assert let_node.variables["x"] == Assignment(
+        "x",
+        BinaryOp("/", Paren(BinaryOp("+", NumberLiteral(10.0), NumberLiteral(20.0))), NumberLiteral(3.0)),
+    )
     cube = let_node.children[0].children[0]
     assert cube.positional_args == [Variable("x")]
-    assert cube.eval_variable("x") == 10.0
 
 
 def test_number_expression():

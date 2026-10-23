@@ -3,7 +3,7 @@ from __future__ import annotations
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
-from manifold_learn.ast.expression import ArrayLiteral, BinaryOp, NumberLiteral, Paren, Variable
+from manifold_learn.ast.expression import ArrayLiteral, Assignment, BinaryOp, NumberLiteral, Paren, Variable
 from manifold_learn.ast.tree_node import TreeNode
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
@@ -139,12 +139,11 @@ def test_chained_scale_translate_box_nesting():
     assert cube.positional_args == [ArrayLiteral([NumberLiteral(1.0), NumberLiteral(1.0), NumberLiteral(1.0)])]
 
 
-def test_let_binding_visible_through_scope_chain():
+def test_let_binding_registers_on_let_node():
     root = parse_scad(COMPLEX_SOURCE)
     let_node = root.children[1]
     assert let_node.module == "let"
-    # The let binding offset=4 is stored and resolves to its literal value
-    assert let_node.eval_variable("offset") == 4.0
+    assert let_node.variables == {"offset": Assignment("offset", NumberLiteral(4.0))}
 
     # let -> block -> translate -> block -> box
     block = let_node.children[0]
@@ -156,25 +155,20 @@ def test_let_binding_visible_through_scope_chain():
     assert inner_block.module == "block"
     box = inner_block.children[0]
     assert box.module == "box"
-    # box(offset) references the let-bound variable; resolves through scope
+    # box(offset) references the let-bound variable
     assert box.positional_args == [Variable("offset")]
-    assert box.eval_variable("offset") == 4.0
 
 
-def test_top_level_variables_are_in_scope():
-    # Top-level assignments register variables on the root node and resolve
-    # through the parent scope chain.
+def test_top_level_assignments_register_on_root():
+    # Top-level assignments register variable data on the root node;
+    # resolution semantics are covered by the evaluator tests.
     root = parse_scad(COMPLEX_SOURCE)
-    # width is redefined to 100 later in the source; the last definition wins.
-    assert root.eval_variable("width") == 100.0
-    # NOTE: depth/height are evaluated lazily against the current width, so
-    # they reflect the redefined value (200 / 102.5) rather than the value at
-    # their own definition point. This is a known deviation from OpenSCAD's
-    # eager capture semantics.
-    assert root.eval_variable("depth") == 200.0
-    assert root.eval_variable("height") == 102.5
-    # A let-bound variable is not visible outside its let scope
-    assert root.eval_variable("offset") is None
+    # width is redefined to 100 later in the source; the last definition
+    # wins in the scope's variable table.
+    assert root.variables["width"] == Assignment("width", NumberLiteral(100.0))
+    assert set(root.variables) == {"width", "depth", "height"}
+    # A let-bound variable is registered on the let node, not the root
+    assert "offset" not in root.variables
 
 
 def test_rotate_chain_uses_top_level_variable():
@@ -187,7 +181,6 @@ def test_rotate_chain_uses_top_level_variable():
     # box(width, center=true): width is a Variable reference (resolves to 100)
     assert box.positional_args == [Variable("width")]
     assert box.named_args == {"center": Variable("true")}
-    assert box.eval_variable("width") == 100.0
 
 
 def test_parent_links_are_consistent():
@@ -210,24 +203,21 @@ def test_all_module_calls_have_expected_count():
     assert len(find_modules(root, "translate")) == 3
 
 
-def test_width_redefinition_discards_old_value():
-    root = parse_scad(COMPLEX_SOURCE)
-    # width is redefined to 100 at the top level; the old value (10) is gone
-    assert root.eval_variable("width") == 100.0
-
-
-def test_shadowing_block_references_parent_scope():
+def test_shadowing_block_redefines_width_locally():
     # The trailing block redefines `width` locally, referencing the parent
-    # scope's width (100) on the right-hand side: width = width / 2.
+    # scope's width on the right-hand side: width = width / 2. Resolution
+    # semantics are covered by the evaluator tests; here we check the tree
+    # carries both the redefinition and the reference.
     root = parse_scad(COMPLEX_SOURCE)
     shadow_block = root.children[3]
     assert shadow_block.module == "block"
-    # Inside the block, width resolves to the local definition (100 / 2)
-    assert shadow_block.eval_variable("width") == 50.0
-    # The top-level width is unaffected by the shadowing
-    assert root.eval_variable("width") == 100.0
+    assert shadow_block.variables["width"] == Assignment(
+        "width",
+        BinaryOp("/", Variable("width"), NumberLiteral(2.0)),
+    )
+    # The top level keeps its own definition
+    assert root.variables["width"] == Assignment("width", NumberLiteral(100.0))
     # The block's box(width) references the locally shadowed value
     box = shadow_block.children[0]
     assert box.module == "box"
     assert box.positional_args == [Variable("width")]
-    assert box.eval_variable("width") == 50.0

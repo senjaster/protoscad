@@ -1,39 +1,45 @@
-from typing import Mapping, Sequence, Any
+from typing import Mapping, Sequence
 
 from manifold3d import Manifold, OpType
 
 from manifold_learn.ast.expression import Assignment, NumberLiteral
-from manifold_learn.ast.module_definition import BuiltinModule, ModuleDefinition, Geometry
-from manifold_learn.ast.tree_node import TreeNode
+from manifold_learn.ast.module_definition import BuiltinModule, EvalContext
 
 
-class IdentityModule(ModuleDefinition[Manifold]):
+def union_geometries(geometries: Sequence[Manifold]) -> Manifold | None:
+    """Implicit union: what a scope with several instantiations produces."""
+    if not geometries:
+        return None
+    if len(geometries) == 1:
+        return geometries[0]
+    return Manifold.batch_boolean(list(geometries), OpType.Add)
 
-    def __init__(self, name: str):
-        self._name = name
 
-    def eval(self, scope: TreeNode, children: Sequence[Geometry]) -> Geometry:
-        if len(children) == 1:
-            return children[0]
-        elif len(children) == 0:
-            return None
-        return Manifold.batch_boolean(children, OpType.Add)
+class UnionModule(BuiltinModule):
+    """Implicit union of all children.
+
+    Backs bare blocks, the top level, and ``let``, as well as the
+    user-visible ``union()``.
+    """
+
+    def instantiate(self, ctx: EvalContext) -> Manifold | None:
+        return union_geometries(ctx.evaluate_children())
 
     @property
     def name(self) -> str:
-        return self._name
+        return "union"
 
     @property
     def parameters(self) -> Mapping[str, Assignment]:
         return {}
 
 
-class CubeModule(BuiltinModule[Manifold]):
-    def eval(self, arguments: dict[str, Any], children: Sequence[Geometry]) -> Manifold:
-        size = arguments["size"]
+class CubeModule(BuiltinModule):
+    def instantiate(self, ctx: EvalContext) -> Manifold:
+        size = ctx.args["size"]
         if not isinstance(size, list):
             size = [size, size, size]
-        center = bool(arguments["center"])
+        center = bool(ctx.args["center"])
         return Manifold.cube(size, center)
 
     @property
@@ -47,16 +53,13 @@ class CubeModule(BuiltinModule[Manifold]):
             optional={"center": NumberLiteral(0)},
         )
 
-class TranslateModule(BuiltinModule[Manifold]):
-    def eval(self, arguments: dict[str, Any], children: Sequence[Manifold]) -> Manifold:
-        if len(children) > 1:
-            raise ValueError("translate module must have exactly one child")
-        elif len(children) == 0:
-            return None
 
-        child = children[0]
-        offset = arguments["offset"]
-        return child.translate(offset)
+class TranslateModule(BuiltinModule):
+    def instantiate(self, ctx: EvalContext) -> Manifold | None:
+        child = union_geometries(ctx.evaluate_children())
+        if child is None:
+            return None
+        return child.translate(ctx.args["offset"])
 
     @property
     def name(self) -> str:

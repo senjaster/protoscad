@@ -1,7 +1,7 @@
-from typing import Generic, Mapping, Sequence
+from typing import Generic, Mapping
 
 from manifold_learn.ast.expression import Assignment
-from manifold_learn.ast.module_definition import ModuleDefinition, Geometry
+from manifold_learn.ast.module_definition import EvalContext, Geometry, ModuleDefinition
 from manifold_learn.ast.tree_node import TreeNode
 
 
@@ -12,8 +12,10 @@ class UserDefinedModule(ModuleDefinition, Generic[Geometry]):
         self._parameters = parameters
         self.body = body
 
-    def eval(self, scope: TreeNode, children: Sequence[Geometry]) -> Geometry:
-        pass
+    def instantiate(self, ctx: EvalContext) -> Geometry | list[Geometry] | None:
+        # Instantiating the body in its definition-site environment is what
+        # statement kinds (#3) will wire up; unreachable until then.
+        return None
 
     @property
     def name(self) -> str:

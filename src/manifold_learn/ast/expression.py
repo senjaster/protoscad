@@ -4,13 +4,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from manifold_learn.ast.tree_node import TreeNode
+    from manifold_learn.ast.environment import Environment
 
 
 class Expression:
     """Base class for a node in the expression AST."""
 
-    def evaluate(self, node: "TreeNode") -> Any:
+    def evaluate(self, env: "Environment") -> Any:
         raise NotImplementedError
 
 
@@ -18,7 +18,7 @@ class Expression:
 class NumberLiteral(Expression):
     value: float
 
-    def evaluate(self, node: "TreeNode") -> float:
+    def evaluate(self, env: "Environment") -> float:
         return self.value
 
 
@@ -26,23 +26,20 @@ class NumberLiteral(Expression):
 class Variable(Expression):
     name: str
 
-    def evaluate(self, node: "TreeNode") -> Any:
-        return node.eval_variable(self.name)
+    def evaluate(self, env: "Environment") -> Any:
+        return env.lookup_variable(self.name)
 
 
 @dataclass
-class Assignment(Expression):
-    """A variable assignment, e.g. `width = 10;`.
+class Assignment:
+    """A variable binding: a name plus the expression that defines it.
 
-    Evaluates the assigned value against a node that excludes this variable,
-    so a definition cannot reference itself (OpenSCAD declarative semantics).
+    Plain data — the scoping rules (self-reference exclusion, parent lookup)
+    live in ``Environment``.
     """
 
     name: str
     value: Expression
-
-    def evaluate(self, node: "TreeNode") -> Any:
-        return self.value.evaluate(node.excluding_var(self.name))
 
 
 @dataclass
@@ -51,9 +48,9 @@ class BinaryOp(Expression):
     left: Expression
     right: Expression
 
-    def evaluate(self, node: "TreeNode") -> Any:
-        left = self.left.evaluate(node)
-        right = self.right.evaluate(node)
+    def evaluate(self, env: "Environment") -> Any:
+        left = self.left.evaluate(env)
+        right = self.right.evaluate(env)
         if self.op == "+":
             return left + right
         if self.op == "-":
@@ -69,8 +66,8 @@ class BinaryOp(Expression):
 class Paren(Expression):
     inner: Expression
 
-    def evaluate(self, node: "TreeNode") -> Any:
-        return self.inner.evaluate(node)
+    def evaluate(self, env: "Environment") -> Any:
+        return self.inner.evaluate(env)
 
 
 @dataclass
@@ -79,8 +76,8 @@ class ArrayLiteral(Expression):
 
     elements: list[Expression]
 
-    def evaluate(self, node: "TreeNode") -> list[Any]:
-        return [element.evaluate(node) for element in self.elements]
+    def evaluate(self, env: "Environment") -> list[Any]:
+        return [element.evaluate(env) for element in self.elements]
 
 
 @dataclass
@@ -89,7 +86,7 @@ class Raw(Expression):
 
     text: str
 
-    def evaluate(self, node: "TreeNode") -> Any:
+    def evaluate(self, env: "Environment") -> Any:
         return self.text
 
 
@@ -100,5 +97,5 @@ class Undefined(Expression):
     Evaluating it is a runtime error: a required parameter was never supplied.
     """
 
-    def evaluate(self, node: "TreeNode") -> Any:
+    def evaluate(self, env: "Environment") -> Any:
         raise ValueError("Undefined parameter value")

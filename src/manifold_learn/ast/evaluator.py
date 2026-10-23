@@ -1,35 +1,40 @@
-from manifold_learn.ast.module_definition import ModuleDefinition
+from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import Any
+
+from manifold_learn.ast.environment import Environment
+from manifold_learn.ast.manifold import UnionModule
+from manifold_learn.ast.module_definition import ChildInvocation, EvalContext, ModuleDefinition
 from manifold_learn.ast.tree_node import TreeNode
 
 
 class TreeEvaluator:
+    def __init__(self, builtin_modules: Iterable[ModuleDefinition]):
+        union = UnionModule()
+        self._modules: dict[str, ModuleDefinition] = {m.name: m for m in builtin_modules}
+        # "root", "block" and "let" are internal aliases for the implicit
+        # union, registered below the environment chain so a user module of
+        # the same name shadows them. They exist only until the AST gets
+        # real statement kinds.
+        for name in ("union", "root", "block", "let"):
+            self._modules.setdefault(name, union)
 
-    def __init__(self, builtin_modules: list[ModuleDefinition]):
-        self._builtin_modules = builtin_modules
+    def evaluate(self, root: TreeNode) -> Any:
+        env = Environment(modules=self._modules)
+        return self._instantiate(ChildInvocation(root, env))
 
-    def make_root_node(self) -> TreeNode:
-        return TreeNode(
-            module="root",
-            positional_args=[],
-            named_args={},
-            _modules={module.name: module for module in self._builtin_modules}
-        )
+    def _instantiate(self, invocation: ChildInvocation) -> Any:
+        node = invocation.node
+        env = invocation.env
+        if node.variables:
+            env = env.extend(node.variables)
 
-    def eval_tree(self, node: TreeNode):
-        root = self.make_root_node()
-        root.add_child(node)
-        return self._eval_node(node)
+        module_def = env.lookup_module(node.module)
+        if module_def is None:
+            raise ValueError(f"Unknown module: {node.module!r}")
 
-    def _eval_node(self, node: TreeNode):
-        module_name = node.module
-        print(module_name)
-        module_def = node.get_module(module_name)
-        bound_parameters = module_def.bind_parameters(node.positional_args, node.named_args)
-        scope = node.make_parameter_scope(bound_parameters)
-        args = {
-            name: scope.eval_variable(name)
-            for name
-            in module_def.parameters.keys()
-        }
-        children = [self._eval_node(child) for child in node.children]
-        return module_def.eval(args, children)
+        bound = module_def.bind_parameters(node.positional_args, node.named_args)
+        args = {name: assignment.value.evaluate(env) for name, assignment in bound.items()}
+        children = [ChildInvocation(child, env) for child in node.children]
+        return module_def.instantiate(EvalContext(args=args, children=children, env=env, evaluate=self._instantiate))
