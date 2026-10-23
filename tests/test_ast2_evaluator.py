@@ -6,8 +6,9 @@ import pytest
 from manifold3d import Manifold
 
 from manifold_learn.ast.expression import Assignment, NumberLiteral
+from manifold_learn.ast.invocation import ChildInvocation, EvalContext
 from manifold_learn.ast.manifold import CubeModule, TranslateModule
-from manifold_learn.ast.module_definition import BuiltinModule, ChildInvocation, EvalContext
+from manifold_learn.ast.module_definition import BuiltinModule
 from manifold_learn.ast.evaluator import StatementEvaluator
 from manifold_learn.ast.statement import Statement
 from manifold_learn.ast.visitor import AstOpenSCADVisitor

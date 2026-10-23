@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-from manifold_learn.ast.children_module import ChildrenModule
-
 if TYPE_CHECKING:
     from manifold_learn.ast.expression import Assignment
-    from manifold_learn.ast.module_definition import ModuleDefinition, ChildInvocation
+    from manifold_learn.ast.invocation import ChildInvocation
+    from manifold_learn.ast.module_definition import ModuleDefinition
 
 
 class Environment:

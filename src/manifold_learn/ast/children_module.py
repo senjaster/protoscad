@@ -1,7 +1,8 @@
 from typing import Sequence, Mapping
 
 from manifold_learn.ast.expression import Assignment, NumberLiteral
-from manifold_learn.ast.module_definition import BuiltinModule, EvalContext, ChildInvocation, Geometry
+from manifold_learn.ast.invocation import ChildInvocation, EvalContext
+from manifold_learn.ast.module_definition import BuiltinModule, Geometry
 
 
 class ChildrenModule(BuiltinModule):

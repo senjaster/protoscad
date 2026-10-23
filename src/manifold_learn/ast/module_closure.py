@@ -10,7 +10,7 @@ from manifold_learn.ast.invocation import ChildInvocation, EvalContext
 from manifold_learn.ast.statement import Statement
 
 
-class UserDefinedModule(ModuleDefinition, Generic[Geometry]):
+class ModuleClosure(ModuleDefinition, Generic[Geometry]):
 
     def __init__(
         self,

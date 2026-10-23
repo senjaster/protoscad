@@ -14,7 +14,7 @@ from manifold_learn.ast.statement import (
     Statement,
     VariableBindingStatement,
 )
-from manifold_learn.ast.user_defined_module import UserDefinedModule
+from manifold_learn.ast.module_closure import ModuleClosure
 
 
 class StatementEvaluator:
@@ -70,7 +70,7 @@ class StatementEvaluator:
         scope_env = env.extend(variables) if variables else env
         if definitions:
             modules = {
-                definition.name: UserDefinedModule(
+                definition.name: ModuleClosure(
                     definition.name, definition.parameters, definition.body, scope_env
                 )
                 for definition in definitions

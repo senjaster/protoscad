@@ -1,72 +1,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
-from typing import Any, Generic, TypeVar, TYPE_CHECKING
+from collections.abc import Mapping, Sequence
+from typing import Generic, TypeVar, TYPE_CHECKING
 
 from manifold_learn.ast.expression import Assignment, Undefined
 
 if TYPE_CHECKING:
-    from manifold_learn.ast.environment import Environment
     from manifold_learn.ast.expression import Expression
-    from manifold_learn.ast.tree_node import TreeNode
 
 Geometry = TypeVar("Geometry")
-
-
-@dataclass
-class ChildInvocation:
-    """A child module call held unevaluated, together with the environment
-    it must run in.
-
-    Modules decide whether and when to evaluate their children
-    (``EvalContext.evaluate_children``). That is what lets ``if``, ``for``
-    and ``children()`` exist as ordinary modules instead of evaluator
-    special cases.
-    """
-
-    node: TreeNode
-    env: Environment
-
-
-@dataclass
-class ModuleDefinitionNode:
-    """A user-defined module as pure AST data.
-
-    Mirrors the shape of ``UserDefinedModule`` but without the definition-site
-    environment, which is only known at evaluation time. The evaluator turns
-    one of these into a ``UserDefinedModule`` bound to the scope where the
-    ``module`` statement appeared.
-    """
-
-    name: str
-    parameters: Mapping[str, Assignment]
-    body: TreeNode
-
-
-@dataclass
-class EvalContext:
-    """Everything a module may use when instantiated."""
-
-    args: Mapping[str, Any]
-    children: Sequence[ChildInvocation]
-    env: Environment
-    evaluate: Callable[[ChildInvocation], Any]
-
-    def evaluate_children(self) -> list[Any]:
-        """Evaluate every child invocation, flattening multi-geometry
-        results and dropping empty ones."""
-        results: list[Any] = []
-        for invocation in self.children:
-            result = self.evaluate(invocation)
-            if result is None:
-                continue
-            if isinstance(result, list):
-                results.extend(result)
-            else:
-                results.append(result)
-        return results
 
 
 class ModuleDefinition(ABC, Generic[Geometry]):
