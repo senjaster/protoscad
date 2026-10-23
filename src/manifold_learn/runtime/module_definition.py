@@ -75,7 +75,7 @@ class ModuleDefinition[Geometry](ABC):
         return bound
 
 
-class BuiltinModule[Geometry](ModuleDefinition):
+class BuiltinModule[Geometry](ModuleDefinition, ABC):
     """Base class for the modules shipped with the language.
 
     A built-in module's parameters are always either required (no default)

@@ -10,11 +10,12 @@ from manifold3d import Manifold
 from manifold_learn.ast.expression import Assignment, NumberLiteral
 from manifold_learn.ast.statement import ModuleCallStatement
 from manifold_learn.ast.visitor import AstOpenSCADVisitor
+from manifold_learn.builtins.cube import CubeModule
+from manifold_learn.builtins.translate import TranslateModule
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 from manifold_learn.runtime.evaluator import StatementEvaluator
 from manifold_learn.runtime.invocation import EvalContext
-from manifold_learn.runtime.manifold import CubeModule, TranslateModule
 from manifold_learn.runtime.module_definition import BuiltinModule
 
 MARKER_GEOMETRY = Manifold.cube([1.0, 1.0, 1.0])
