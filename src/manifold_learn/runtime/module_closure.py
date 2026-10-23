@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from manifold_learn.ast.children_module import ChildrenModule
-from manifold_learn.ast.environment import Environment
+from manifold_learn.runtime.children_module import ChildrenModule
+from manifold_learn.runtime.environment import Environment
 from manifold_learn.ast.expression import Assignment, Literal
-from manifold_learn.ast.invocation import EvalContext
-from manifold_learn.ast.module_definition import Geometry, ModuleDefinition
+from manifold_learn.runtime.invocation import EvalContext
+from manifold_learn.runtime.module_definition import ModuleDefinition
 from manifold_learn.ast.statement import ModuleCallStatement
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from manifold_learn.ast.environment import Environment
+from manifold_learn.runtime.environment import Environment
 from manifold_learn.ast.expression import Assignment, BinaryOp, NumberLiteral, Variable
 
 

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from manifold_learn.ast import ModuleCallStatement
-    from manifold_learn.ast.environment import Environment
+    from manifold_learn.runtime.environment import Environment
 
 
 @dataclass

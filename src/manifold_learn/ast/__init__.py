@@ -1,4 +1,3 @@
-from manifold_learn.ast.evaluator import StatementEvaluator
 from manifold_learn.ast.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
@@ -12,6 +11,5 @@ __all__ = [
     "ModuleCallStatement",
     "ModuleDefinitionStatement",
     "Statement",
-    "StatementEvaluator",
     "VariableBindingStatement",
 ]

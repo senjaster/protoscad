@@ -3,8 +3,8 @@ from collections.abc import Mapping, Sequence
 from manifold3d import Manifold, OpType
 
 from manifold_learn.ast.expression import Assignment, NumberLiteral
-from manifold_learn.ast.invocation import EvalContext
-from manifold_learn.ast.module_definition import BuiltinModule
+from manifold_learn.runtime.invocation import EvalContext
+from manifold_learn.runtime.module_definition import BuiltinModule
 
 
 def union_geometries(geometries: Sequence[Manifold]) -> Manifold | None:
