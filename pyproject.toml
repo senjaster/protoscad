@@ -23,5 +23,41 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "antlr4-tools>=0.2.2",
+    "mypy>=2.4.0",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.2",
 ]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+exclude = ["src/manifold_learn/grammar/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.14"
+files = ["src", "tests"]
+exclude = ["src/manifold_learn/grammar/"]
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = ["manifold3d", "antlr4", "antlr4.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+omit = ["src/manifold_learn/grammar/*"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=manifold_learn --cov-report=term-missing"
+testpaths = ["tests"]
