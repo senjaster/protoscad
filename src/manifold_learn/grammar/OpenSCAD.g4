@@ -6,17 +6,31 @@ start       : statement* EOF ;
 statement   : moduleCallSeq
             | moduleDefinition
             | assignment
+            | block
             ;
 
+// A chain of module calls. Each call's body is either the continuation
+// (another chained call), an explicit block, or nothing (terminal).
 moduleCallSeq     : moduleCall moduleCallSeq       # ChainedModuleCall
                   | letExpr moduleCallSeq          # ChainedLetCall
+                  | moduleCall block               # ModuleCallWithBlock
+                  | letExpr block                  # LetWithBlock
                   | moduleCall ';'                 # TerminalModuleCall
-                  | block                          # TerminalBlock
+                  | letExpr ';'                    # TerminalLet
                   ;
 
 moduleCall        : IDENT '(' argList? ')' ;
 
-block           : '{' statement* '}' ;
+// A scope: the body of a module definition or module invocation. It is either
+// an explicit `{ ... }` block or a chained module-call sequence (the
+// brace-less form).
+body        : block
+            | moduleCallSeq
+            ;
+
+// Bare `{ ... }` block. Transparent: the visitor splices its statements into
+// the enclosing scope rather than creating a block node.
+block       : '{' statement* '}' ;
 
 letExpr : LET '(' letBindingList ')' ;
 letBindingList : letBinding
@@ -34,7 +48,7 @@ param       : IDENT                  # ParamNoDefault
             ;
 
 // Module definition, e.g. `module SomeName(arg1, arg2=10) { ... }`
-moduleDefinition : 'module' IDENT '(' paramList? ')' moduleCallSeq ;
+moduleDefinition : 'module' IDENT '(' paramList? ')' body ;
 
 // Variable assignment
 assignment  : IDENT EQ expr ';' ;
@@ -80,9 +94,3 @@ STRING      : '"' (~["\r\n])* '"' ;
 COMMENT     : '//' ~[\r\n]* -> skip ;
 BLOCK_CMT   : '/*' .*? '*/' -> skip ;
 WS          : [ \t\r\n]+ -> skip ;
-
-
-// Existing issues
-// - NUMBER : '-'? [0-9]+ ... breaks binary minus after whitespace-free operands. x = 1 - 2; lexes fine (- followed by space can't match NUMBER), but x = 1 -2; lexes as NUMBER(1) NUMBER(-2) and fails to parse. The usual fix is to drop '-' from NUMBER and add a '-' expr unary alternative under # UnaryExpr; then -3.2 in arrays still works.
-// - '[' exprList? ']' and exprList/argList are right-recursive, so recursion depth grows with list length. Harmless at realistic sizes; a (',' expr)* loop shape avoids it if you ever feed generated input.
-// - STRING has no escape handling — "a\"b" can't be written.

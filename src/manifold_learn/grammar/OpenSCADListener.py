@@ -1,4 +1,4 @@
-# Generated from OpenSCAD.g4 by ANTLR 4.13.2
+# Generated from src/manifold_learn/grammar/OpenSCAD.g4 by ANTLR 4.13.2
 from antlr4 import *
 if "." in __name__:
     from .OpenSCADParser import OpenSCADParser
@@ -44,6 +44,24 @@ class OpenSCADListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by OpenSCADParser#ModuleCallWithBlock.
+    def enterModuleCallWithBlock(self, ctx:OpenSCADParser.ModuleCallWithBlockContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#ModuleCallWithBlock.
+    def exitModuleCallWithBlock(self, ctx:OpenSCADParser.ModuleCallWithBlockContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#LetWithBlock.
+    def enterLetWithBlock(self, ctx:OpenSCADParser.LetWithBlockContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#LetWithBlock.
+    def exitLetWithBlock(self, ctx:OpenSCADParser.LetWithBlockContext):
+        pass
+
+
     # Enter a parse tree produced by OpenSCADParser#TerminalModuleCall.
     def enterTerminalModuleCall(self, ctx:OpenSCADParser.TerminalModuleCallContext):
         pass
@@ -53,12 +71,12 @@ class OpenSCADListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by OpenSCADParser#TerminalBlock.
-    def enterTerminalBlock(self, ctx:OpenSCADParser.TerminalBlockContext):
+    # Enter a parse tree produced by OpenSCADParser#TerminalLet.
+    def enterTerminalLet(self, ctx:OpenSCADParser.TerminalLetContext):
         pass
 
-    # Exit a parse tree produced by OpenSCADParser#TerminalBlock.
-    def exitTerminalBlock(self, ctx:OpenSCADParser.TerminalBlockContext):
+    # Exit a parse tree produced by OpenSCADParser#TerminalLet.
+    def exitTerminalLet(self, ctx:OpenSCADParser.TerminalLetContext):
         pass
 
 
@@ -68,6 +86,15 @@ class OpenSCADListener(ParseTreeListener):
 
     # Exit a parse tree produced by OpenSCADParser#moduleCall.
     def exitModuleCall(self, ctx:OpenSCADParser.ModuleCallContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#body.
+    def enterBody(self, ctx:OpenSCADParser.BodyContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#body.
+    def exitBody(self, ctx:OpenSCADParser.BodyContext):
         pass
 
 
@@ -104,6 +131,33 @@ class OpenSCADListener(ParseTreeListener):
 
     # Exit a parse tree produced by OpenSCADParser#letBinding.
     def exitLetBinding(self, ctx:OpenSCADParser.LetBindingContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#paramList.
+    def enterParamList(self, ctx:OpenSCADParser.ParamListContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#paramList.
+    def exitParamList(self, ctx:OpenSCADParser.ParamListContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#ParamNoDefault.
+    def enterParamNoDefault(self, ctx:OpenSCADParser.ParamNoDefaultContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#ParamNoDefault.
+    def exitParamNoDefault(self, ctx:OpenSCADParser.ParamNoDefaultContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#ParamWithDefault.
+    def enterParamWithDefault(self, ctx:OpenSCADParser.ParamWithDefaultContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#ParamWithDefault.
+    def exitParamWithDefault(self, ctx:OpenSCADParser.ParamWithDefaultContext):
         pass
 
 

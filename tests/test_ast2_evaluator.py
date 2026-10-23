@@ -5,13 +5,25 @@ from typing import Any, Mapping
 import pytest
 from manifold3d import Manifold
 
-from manifold_learn.ast.evaluator import TreeEvaluator
 from manifold_learn.ast.expression import Assignment, NumberLiteral
-from manifold_learn.ast.module_definition import BuiltinModule, ChildInvocation, EvalContext
 from manifold_learn.ast.manifold import CubeModule, TranslateModule
-from conftest import parse_scad
+from manifold_learn.ast.module_definition import BuiltinModule, ChildInvocation, EvalContext
+from manifold_learn.ast.evaluator import StatementEvaluator
+from manifold_learn.ast.statement import Statement
+from manifold_learn.ast.visitor import AstOpenSCADVisitor
+from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
+from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
+from antlr4 import CommonTokenStream, InputStream
 
 MARKER_GEOMETRY = Manifold.cube([1.0, 1.0, 1.0])
+
+
+def parse_scad(source: str) -> list[Statement]:
+    lexer = OpenSCADLexer(InputStream(source))
+    stream = CommonTokenStream(lexer)
+    parser = OpenSCADParser(stream)
+    tree = parser.start()
+    return AstOpenSCADVisitor().visit(tree)
 
 
 class RecordingModule(BuiltinModule):
@@ -57,8 +69,12 @@ class ForLoopModule(BuiltinModule):
 
 
 def evaluate_with_modules(source: str, modules):
-    tree = parse_scad(source)
-    return TreeEvaluator(modules).evaluate(tree)
+    scope = parse_scad(source)
+    return StatementEvaluator(modules).evaluate(scope)
+
+
+## =========================================================================
+#  Variable bindings
 
 
 def test_top_level_assignment_visible_to_module_args():
@@ -82,6 +98,21 @@ def test_lazy_assignment_reflects_final_scope_values():
     assert probe.calls == [{"value": 200.0}]
 
 
+def test_declarative_forward_reference_in_scope():
+    # OpenSCAD is declarative: a module call may precede the variable binding
+    # and module definition it depends on within the same scope.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "my_module(var1); module my_module(x) { probe(x); } var1 = 10;",
+        [probe],
+    )
+    assert probe.calls == [{"value": 10.0}]
+
+
+## =========================================================================
+#  let
+
+
 def test_let_binding_visible_to_children():
     probe = RecordingModule("probe")
     result = evaluate_with_modules("let(offset = 4) { probe(offset); }", [probe])
@@ -95,25 +126,37 @@ def test_let_binding_not_visible_outside():
     assert probe.calls == [{"value": 1.0}, {"value": None}]
 
 
-def test_block_variable_scopes_to_block():
+def test_sibling_does_not_see_let_binding():
+    probe = RecordingModule("probe")
+    evaluate_with_modules("let(x = 1) probe(1); probe(x);", [probe])
+    assert probe.calls == [{"value": 1.0}, {"value": None}]
+
+
+## =========================================================================
+#  Blocks are transparent
+
+
+def test_bare_block_variable_leaks_to_enclosing_scope():
+    # QUIRKS.md: a bare block is transparent (no new scope), so `local`
+    # binds in the top-level scope and is visible to the second probe.
     probe = RecordingModule("probe")
     evaluate_with_modules("{ local = 7; probe(local); } probe(local);", [probe])
-    assert probe.calls == [{"value": 7.0}, {"value": None}]
+    assert probe.calls == [{"value": 7.0}, {"value": 7.0}]
 
 
-def test_block_shadowing_references_parent_on_rhs():
+def test_shadowing_references_parent_on_rhs_across_real_scope():
+    # A module invocation (union) is a real scope: inside it, `width = width/2`
+    # references the enclosing top-level width (self-reference excluded).
     probe = RecordingModule("probe")
     evaluate_with_modules(
-        "width = 100; { width = width / 2; probe(width); } probe(width);",
+        "width = 100; union() { width = width / 2; probe(width); } probe(width);",
         [probe],
     )
     assert probe.calls == [{"value": 50.0}, {"value": 100.0}]
 
 
-def test_sibling_does_not_see_let_binding():
-    probe = RecordingModule("probe")
-    evaluate_with_modules("let(x = 1) probe(1); probe(x);", [probe])
-    assert probe.calls == [{"value": 1.0}, {"value": None}]
+## =========================================================================
+#  Multiple results / errors
 
 
 def test_multiple_top_level_results_are_unioned():
@@ -146,9 +189,11 @@ def test_default_parameter_supplied_when_omitted():
     assert module.calls == [{"value": 42.0}]
 
 
+## =========================================================================
+#  Lazy children contract
+
+
 def test_children_are_not_evaluated_unless_module_asks():
-    # The core of the new contract: a module that never calls
-    # ctx.evaluate_children() leaves its subtree unevaluated.
     class LazyModule(BuiltinModule):
         def instantiate(self, ctx: EvalContext) -> Manifold:
             return Manifold.cube([2.0, 2.0, 2.0])
@@ -168,8 +213,6 @@ def test_children_are_not_evaluated_unless_module_asks():
 
 
 def test_for_loop_implemented_as_ordinary_builtin():
-    # The architecture goal made concrete: `for` needs no evaluator special
-    # case — it re-instantiates its body per value with a fresh binding.
     probe = RecordingModule("probe")
     result = evaluate_with_modules(
         "for(values = [10, 20, 30]) probe(i);",
@@ -181,7 +224,6 @@ def test_for_loop_implemented_as_ordinary_builtin():
 
 
 def test_for_loop_body_sees_surrounding_scope():
-    # The loop variable shadows, but outer bindings remain visible.
     probe = RecordingModule("probe")
     evaluate_with_modules(
         "outer = 5; for(values = [1]) probe(outer);",
@@ -189,7 +231,9 @@ def test_for_loop_body_sees_surrounding_scope():
     )
     assert probe.calls == [{"value": 5.0}]
 
-# --- user-defined modules ---
+
+## =========================================================================
+#  User-defined modules
 
 
 def test_user_module_call_evaluates_body():
@@ -211,7 +255,6 @@ def test_user_module_parameters_bind_to_body():
 
 
 def test_user_module_body_sees_surrounding_scope():
-    # A module defined at top level sees top-level variables lexically.
     probe = RecordingModule("probe")
     evaluate_with_modules(
         "width = 5; module Foo() { probe(width); } Foo();",
@@ -221,11 +264,12 @@ def test_user_module_body_sees_surrounding_scope():
 
 
 def test_user_module_does_not_see_call_site_plain_variables():
-    # Ordinary variables are lexical: a binding at the call site (in a
-    # different scope than the definition) is not visible inside the body.
+    # Ordinary variables are lexical: a binding at the call site (inside a
+    # real module invocation, a different scope than the definition) is not
+    # visible inside the body.
     probe = RecordingModule("probe")
     evaluate_with_modules(
-        "module Foo() { probe(x); } { x = 99; Foo(); }",
+        "module Foo() { probe(x); } union() { x = 99; Foo(); }",
         [probe],
     )
     assert probe.calls == [{"value": None}]
@@ -236,33 +280,38 @@ def test_user_module_does_see_call_site_special_variables():
     # different scope than the definition) is visible inside the body.
     probe = RecordingModule("probe")
     evaluate_with_modules(
-        "$x = 100; module Foo() { probe($x); } { $x = 99; Foo(); }",
+        "$x = 100; module Foo() { probe($x); } union() { $x = 99; Foo(); }",
         [probe],
     )
     assert probe.calls == [{"value": 99}]
 
-def test_user_module_defined_inside_block_is_scoped_to_block():
+
+def test_user_module_defined_inside_real_scope_is_scoped_to_it():
+    # A module defined inside a module invocation (a real scope) is not
+    # visible outside it.
     probe = RecordingModule("probe")
     evaluate_with_modules(
-        "{ module Bar() { probe(1); } Bar(); }",
+        "union() { module Bar() { probe(1); } Bar(); }",
         [probe],
     )
     assert probe.calls == [{"value": 1.0}]
-    # Bar is not visible outside the block.
     with pytest.raises(ValueError, match="Unknown module: 'Bar'"):
         evaluate_with_modules(
-            "{ module Bar() { probe(1); } } Bar();",
+            "union() { module Bar() { probe(1); } } Bar();",
             [probe],
         )
 
 
 def test_user_module_body_uses_geometry_modules():
-    # A user module that wraps a built-in geometry module produces geometry.
     result = evaluate_with_modules(
         "module Box() { cube([1,1,1]); } Box();",
         [CubeModule(), TranslateModule()],
     )
     assert result.volume() == pytest.approx(1.0)
+
+
+## =========================================================================
+#  children()
 
 
 def test_user_module_children_module_works():
@@ -282,6 +331,7 @@ def test_user_module_children_module_ignores_missing_child():
     )
     assert probe.calls == []
 
+
 def test_user_module_children_module_picks_proper_child():
     probe = RecordingModule("probe")
     evaluate_with_modules(
@@ -289,3 +339,24 @@ def test_user_module_children_module_picks_proper_child():
         [probe],
     )
     assert probe.calls == [{"value": 20}]
+
+
+def test_children_bare_block_unwrapped():
+    # QUIRKS.md: a bare block is transparent, so children(1) yields `bbb` only.
+    echo = RecordingModule("echo")
+    evaluate_with_modules(
+        'module my_mod() { children(1); } my_mod() { echo("aaa"); { echo("bbb"); echo("ccc"); } }',
+        [echo],
+    )
+    assert echo.calls == [{"value": '"bbb"'}]
+
+
+def test_children_module_invocation_is_single_child():
+    # QUIRKS.md: a module invocation union(){...} is a single child, so
+    # children(1) yields the whole union (which evaluates to both echoes).
+    echo = RecordingModule("echo")
+    evaluate_with_modules(
+        'module my_mod() { children(1); } my_mod() { echo("aaa"); union() { echo("bbb"); echo("ccc"); } }',
+        [echo],
+    )
+    assert echo.calls == [{"value": '"bbb"'}, {"value": '"ccc"'}]

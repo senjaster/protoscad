@@ -1,4 +1,4 @@
-# Generated from OpenSCAD.g4 by ANTLR 4.13.2
+# Generated from src/manifold_learn/grammar/OpenSCAD.g4 by ANTLR 4.13.2
 from antlr4 import *
 if "." in __name__:
     from .OpenSCADParser import OpenSCADParser
@@ -29,18 +29,33 @@ class OpenSCADVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by OpenSCADParser#ModuleCallWithBlock.
+    def visitModuleCallWithBlock(self, ctx:OpenSCADParser.ModuleCallWithBlockContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#LetWithBlock.
+    def visitLetWithBlock(self, ctx:OpenSCADParser.LetWithBlockContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by OpenSCADParser#TerminalModuleCall.
     def visitTerminalModuleCall(self, ctx:OpenSCADParser.TerminalModuleCallContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by OpenSCADParser#TerminalBlock.
-    def visitTerminalBlock(self, ctx:OpenSCADParser.TerminalBlockContext):
+    # Visit a parse tree produced by OpenSCADParser#TerminalLet.
+    def visitTerminalLet(self, ctx:OpenSCADParser.TerminalLetContext):
         return self.visitChildren(ctx)
 
 
     # Visit a parse tree produced by OpenSCADParser#moduleCall.
     def visitModuleCall(self, ctx:OpenSCADParser.ModuleCallContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#body.
+    def visitBody(self, ctx:OpenSCADParser.BodyContext):
         return self.visitChildren(ctx)
 
 

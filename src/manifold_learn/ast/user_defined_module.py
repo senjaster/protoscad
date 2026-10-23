@@ -1,16 +1,24 @@
+from __future__ import annotations
+
 from typing import Generic, Mapping
 
-from manifold_learn.ast import environment
 from manifold_learn.ast.children_module import ChildrenModule
 from manifold_learn.ast.environment import Environment
 from manifold_learn.ast.expression import Assignment, Literal
-from manifold_learn.ast.module_definition import EvalContext, Geometry, ModuleDefinition, ChildInvocation
-from manifold_learn.ast.tree_node import TreeNode
+from manifold_learn.ast.module_definition import Geometry, ModuleDefinition
+from manifold_learn.ast.invocation import ChildInvocation, EvalContext
+from manifold_learn.ast.statement import Statement
 
 
 class UserDefinedModule(ModuleDefinition, Generic[Geometry]):
 
-    def __init__(self, name: str, parameters: Mapping[str, Assignment], body: TreeNode, env: Environment):
+    def __init__(
+        self,
+        name: str,
+        parameters: Mapping[str, Assignment],
+        body: list[Statement],
+        env: Environment,
+    ):
         self._name = name
         self._parameters = parameters
         self._body = body
