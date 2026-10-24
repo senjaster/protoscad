@@ -3,7 +3,7 @@ from __future__ import annotations
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
-from manifold_learn.ast.expression import (
+from manifold_learn.tree.expression import (
     ArrayLiteral,
     Assignment,
     BinaryOp,
@@ -12,12 +12,12 @@ from manifold_learn.ast.expression import (
     Undefined,
     Variable,
 )
-from manifold_learn.ast.statement import (
+from manifold_learn.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
     VariableBindingStatement,
 )
-from manifold_learn.ast.visitor import AstOpenSCADVisitor
+from manifold_learn.tree.visitor import AstOpenSCADVisitor
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 

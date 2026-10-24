@@ -27,3 +27,19 @@ __all__ = [
     "TranslateModule",
     "UnionModule",
 ]
+
+BUILTIN_MODULES = [
+    CubeModule,
+    CylinderModule,
+    DifferenceModule,
+    HullModule,
+    IntersectionModule,
+    LetModule,
+    MinkowskiModule,
+    MirrorModule,
+    RotateModule,
+    ScaleModule,
+    SphereModule,
+    TranslateModule,
+    UnionModule,
+]

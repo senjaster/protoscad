@@ -7,9 +7,9 @@ import pytest
 from antlr4 import CommonTokenStream, InputStream
 from manifold3d import Manifold
 
-from manifold_learn.ast.expression import Assignment, NumberLiteral
-from manifold_learn.ast.statement import ModuleCallStatement
-from manifold_learn.ast.visitor import AstOpenSCADVisitor
+from manifold_learn.tree.expression import Assignment, NumberLiteral
+from manifold_learn.tree.statement import ModuleCallStatement
+from manifold_learn.tree.visitor import AstOpenSCADVisitor
 from manifold_learn.builtins.cube import CubeModule
 from manifold_learn.builtins.translate import TranslateModule
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer

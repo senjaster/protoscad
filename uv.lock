@@ -92,6 +92,15 @@ wheels = [
 ]
 
 [[package]]
+name = "click"
+version = "8.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c7/0e/7fa0ef50764b67090eca4114772a2abf8b6148198475e54c660b97caeee6/click-8.5.0.tar.gz", hash = "sha256:ba0d2089de75ea0310e2dde03160e6ca10009947fb95a182f9b54021bb272e34", size = 382235, upload-time = "2026-08-26T13:33:14.56Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/58/50/6c0d534c5f134586a8e1ba4e330569e32f057e33372ae556463212fb4cd3/click-8.5.0-py3-none-any.whl", hash = "sha256:255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360", size = 125251, upload-time = "2026-08-26T13:33:12.928Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -271,7 +280,9 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "antlr4-python3-runtime" },
+    { name = "click" },
     { name = "manifold3d" },
+    { name = "pyglet" },
     { name = "trimesh" },
 ]
 
@@ -287,7 +298,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "antlr4-python3-runtime", specifier = "==4.13.2" },
+    { name = "click", specifier = ">=8.5.0" },
     { name = "manifold3d", specifier = ">=3.5.4" },
+    { name = "pyglet", specifier = "<2" },
     { name = "trimesh", specifier = ">=5.1.1" },
 ]
 
@@ -451,6 +464,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bf/db/7fc19e6f2dc92a966727031389fc2e08b558f0f25eb7403c1119ad4713cd/pluggy-1.7.0.tar.gz", hash = "sha256:d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8", size = 123304, upload-time = "2026-10-15T09:50:58.343Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/40/9e/2b38731e0fc536806f16490e1a12d7f0dc2a1235aa8cc07bcc75416a7daa/pluggy-1.7.0-py3-none-any.whl", hash = "sha256:7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec", size = 27082, upload-time = "2026-10-15T09:50:56.808Z" },
+]
+
+[[package]]
+name = "pyglet"
+version = "1.5.31"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/c0/59130a7edbcc8f84e35870b00a712538ca05415ff02d17181277b8ef8f05/pyglet-1.5.31.zip", hash = "sha256:a5e422b4c27b0fc99e92103bf493109cca5c18143583b868b3b4631a98ae9417", size = 6900712, upload-time = "2024-12-24T07:10:58.022Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e2/43/46aa0ab49f2f5145d201780c7595cf0c305fb4fb5d00d6639792a3d0e770/pyglet-1.5.31-py3-none-any.whl", hash = "sha256:f68413564bbec380e4815898fef0fb7a4a494dc3f8718bfbf28ce2a802634c88", size = 1143660, upload-time = "2024-12-24T07:10:50.769Z" },
 ]
 
 [[package]]

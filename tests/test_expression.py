@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from manifold_learn.ast.expression import (
+from manifold_learn.tree.expression import (
     ArrayLiteral,
     Assignment,
     BinaryOp,

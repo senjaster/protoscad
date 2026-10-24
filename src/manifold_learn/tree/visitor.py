@@ -1,4 +1,4 @@
-from manifold_learn.ast.expression import (
+from manifold_learn.tree.expression import (
     ArrayLiteral,
     Assignment,
     BinaryOp,
@@ -8,7 +8,7 @@ from manifold_learn.ast.expression import (
     Undefined,
     Variable,
 )
-from manifold_learn.ast.statement import (
+from manifold_learn.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
     Statement,

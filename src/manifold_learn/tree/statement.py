@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from manifold_learn.ast.expression import Assignment, Expression
+    from manifold_learn.tree.expression import Assignment, Expression
 
 
 class Statement:

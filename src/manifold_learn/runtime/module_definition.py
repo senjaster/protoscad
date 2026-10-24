@@ -4,10 +4,10 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, TypeVar
 
-from manifold_learn.ast.expression import Assignment, Undefined
+from manifold_learn.tree.expression import Assignment, Undefined
 
 if TYPE_CHECKING:
-    from manifold_learn.ast.expression import Expression
+    from manifold_learn.tree.expression import Expression
     from manifold_learn.runtime.invocation import EvalContext
 
 Geometry = TypeVar("Geometry")

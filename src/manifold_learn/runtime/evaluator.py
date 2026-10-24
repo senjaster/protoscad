@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from manifold_learn.ast.expression import Assignment
-from manifold_learn.ast.statement import (
+from manifold_learn.tree.expression import Assignment
+from manifold_learn.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
     VariableBindingStatement,
@@ -26,11 +26,13 @@ class StatementEvaluator:
 
     def __init__(self, builtin_modules: Iterable[ModuleDefinition]):
         union = UnionModule()
-        self._modules: dict[str, ModuleDefinition] = {m.name: m for m in builtin_modules}
+        self._modules: dict[str, ModuleDefinition] = {str(m.name): m for m in builtin_modules}
+
         # "union" and "let" are scopes: the implicit union backing the top
         # level and module bodies, and the let scoping construct.
         self._modules.setdefault("union", union)
         self._modules.setdefault("let", LetModule())
+        print(list(self._modules.keys()))
 
     def evaluate(self, root: ModuleCallStatement) -> Any:
         """"""

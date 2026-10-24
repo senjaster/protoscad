@@ -1,7 +1,9 @@
 var1 = (10+20)/3;
 var2 = ( var1 + 2 ) / 2;
 
-scale([1,var1,1]) translate([12,11,-3.2]) cube([10,10,10], center=true);
+scale([1,var1,1])
+    translate([12,11,-3.2])
+        cube([10,10,10], center=true);
 rotate([0,0,45])
     translate([12, var2+2, -3.2]) {
         difference() {
@@ -15,7 +17,7 @@ rotate([0,0,45])
  line
  comment */
 
-{
+translate([-100,0,0]) {
     cube(1);
     cube(100);
     {

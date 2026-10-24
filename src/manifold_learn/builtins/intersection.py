@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from manifold3d import Manifold, OpType
 
-from manifold_learn.ast.expression import Assignment
+from manifold_learn.tree.expression import Assignment
 from manifold_learn.builtins._operations import boolean_geometries
 from manifold_learn.runtime.invocation import EvalContext
 from manifold_learn.runtime.module_definition import BuiltinModule

@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from manifold_learn.ast.expression import Assignment
+    from manifold_learn.tree.expression import Assignment
     from manifold_learn.runtime.module_definition import ModuleDefinition
 
 

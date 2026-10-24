@@ -1,10 +1,10 @@
-from manifold_learn.ast.statement import (
+from manifold_learn.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
     Statement,
     VariableBindingStatement,
 )
-from manifold_learn.ast.visitor import AstOpenSCADVisitor
+from manifold_learn.tree.visitor import AstOpenSCADVisitor
 
 __all__ = [
     "AstOpenSCADVisitor",
