@@ -44,7 +44,9 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
         if ctx.assignment() is not None:
             return [self.visit(ctx.assignment())]
         # A bare block is transparent: splice its statements into the scope.
-        return self.visit(ctx.block())
+        if ctx.block() is not None:
+            return self.visit(ctx.block())
+        return []
 
     ## =========================================================================
     #  Module call sequences
