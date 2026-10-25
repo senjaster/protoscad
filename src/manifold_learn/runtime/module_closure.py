@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from manifold_learn.runtime.children_module import ChildrenModule
 from manifold_learn.runtime.environment import Environment
-from manifold_learn.runtime.invocation import EvalContext
 from manifold_learn.runtime.module_definition import ModuleDefinition
 from manifold_learn.tree.expression import Assignment, Literal
 from manifold_learn.tree.statement import ModuleCallStatement, ModuleDefinitionStatement
+
+if TYPE_CHECKING:
+    # Annotation-only: invocation imports ModuleClosure at runtime, so a
+    # runtime import here would be a cycle.
+    from manifold_learn.runtime.invocation import EvalContext
 
 
 class ModuleClosure[Geometry](ModuleDefinition):
@@ -43,7 +47,7 @@ class ModuleClosure[Geometry](ModuleDefinition):
             variables=parameters,
             modules=modules,
             parent=self._definition_env,
-            dynamic_parent=ctx.children_env,
+            dynamic_parent=ctx.child_env,
             is_module_scope=True,
         )
         return ctx.evaluate(self._body, body_env)

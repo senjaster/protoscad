@@ -4,13 +4,13 @@ from collections.abc import Mapping
 
 from manifold3d import Manifold
 
-from manifold_learn.runtime.invocation import EvalContext
+from manifold_learn.runtime.invocation import Invocation
 from manifold_learn.runtime.module_definition import BuiltinModule
 from manifold_learn.tree.expression import Assignment, NumberLiteral
 
 
 class CubeModule(BuiltinModule):
-    def instantiate(self, ctx: EvalContext) -> Manifold:
+    def instantiate(self, ctx: Invocation) -> Manifold:
         size = ctx.args["size"]
         if not isinstance(size, list):
             size = [size, size, size]

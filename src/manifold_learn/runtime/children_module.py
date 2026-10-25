@@ -1,16 +1,20 @@
 from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING
 
-from manifold_learn.runtime.invocation import ChildInvocation, EvalContext
 from manifold_learn.runtime.module_definition import BuiltinModule, Geometry
 from manifold_learn.tree.expression import Assignment
 
+if TYPE_CHECKING:
+    from manifold_learn.runtime.invocation import Invocation
+    from manifold_learn.tree.statement import ModuleCallStatement
+
 
 class ChildrenModule(BuiltinModule):
-    def __init__(self, children: Sequence[ChildInvocation]):
+    def __init__(self, children: Sequence[ModuleCallStatement]):
         BuiltinModule.__init__(self)
         self._children = children
 
-    def instantiate(self, ctx: EvalContext) -> Geometry | list[Geometry] | None:
+    def instantiate(self, ctx: Invocation) -> Geometry | list[Geometry] | None:
         i = ctx.args["i"]
         # The index arrives as a float (NumberLiteral evaluates to float);
         # accept any whole-number value.
@@ -22,8 +26,7 @@ class ChildrenModule(BuiltinModule):
             return None
         if i >= len(self._children):
             return None
-        child_invocation = self._children[i]
-        return ctx.evaluate(child_invocation.node, child_invocation.env)
+        return ctx.evaluate(self._children[i], ctx.child_env)
 
     @property
     def name(self) -> str:

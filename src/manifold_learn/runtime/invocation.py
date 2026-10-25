@@ -1,53 +1,120 @@
 from __future__ import annotations
-
-from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from manifold_learn.runtime.module_definition import ParameterBindings
+
+from manifold_learn.runtime.environment import Environment
+from manifold_learn.runtime.module_closure import ModuleClosure
+from manifold_learn.tree.expression import Assignment
+from manifold_learn.tree.statement import (
+    ModuleCallStatement,
+    ModuleDefinitionStatement,
+    VariableBindingStatement,
+)
 
 if TYPE_CHECKING:
-    from manifold_learn.runtime.environment import Environment
-    from manifold_learn.tree import ModuleCallStatement
+    from manifold_learn.runtime.module_definition import ModuleDefinition, ParameterBindings
 
 
 @dataclass
-class ChildInvocation:
-    """A child module call held unevaluated, together with the environment
-    it must run in.
+class Invocation:
+    """A single module call being evaluated.
 
-    ``node`` is a single module call (a child passed to ``children()`` or
-    ``evaluate_children()``). Modules decide whether and when to evaluate
-    their children (``EvalContext.evaluate_children``). That is what lets
-    ``if``, ``for`` and ``children()`` exist as ordinary modules instead of
-    evaluator special cases.
+    ``node`` is the call statement, ``env`` the scope it appears in;
+    everything else about the invocation derives from that pair on demand:
+    the resolved ``module``, the ``$``-argument overlay (``call_env``),
+    parameter ``bindings``, and the subtree (``children`` statements plus
+    the ``child_env`` scope they evaluate in).
+
+    Modules are instantiated with a context and decide themselves whether
+    and when to evaluate their children — ``evaluate_children``, or
+    per-child ``evaluate`` with a custom environment (a loop binding its
+    variable, a module injecting ``$``-variables). That is what lets
+    ``if``, ``for`` and ``children()`` exist as ordinary modules instead
+    of evaluator special cases.
     """
 
     node: ModuleCallStatement
     env: Environment
 
+    @classmethod
+    def evaluate(cls, node: ModuleCallStatement, env: Environment) -> Any:
+        """Evaluate one call statement in the given scope."""
+        return cls(node, env).instantiate()
 
-@dataclass
-class EvalContext:
-    """Everything a module may use when instantiated.
+    def instantiate(self) -> Any:
+        # Bindings are touched eagerly so argument errors (unknown
+        # parameter, arity) surface on every call, even if the module
+        # never reads them.
+        _ = self.bindings
+        return self.module.instantiate(self)
 
-    Two environments are exposed because a module call sits between two
-    scopes:
+    @cached_property
+    def module(self) -> ModuleDefinition:
+        # Resolve the module in the caller's scope, not in the scope the
+        # call itself introduces for its children.
+        module = self.env.lookup_module(self.node.module)
+        if module is None:
+            raise ValueError(f"Unknown module: {self.node.module!r}")
+        return module
 
-    - ``call_env`` is the scope the call appears in; explicit argument
-      expressions resolve there.
-    - ``children_env`` is the scope the module instantiates its subtree in —
-      the environment every ``ChildInvocation`` in ``children`` carries
-      (plus any ``$``-argument overlay); user module bodies get it as their
-      dynamic parent so special variables reach them.
-    """
+    @cached_property
+    def call_env(self) -> Environment:
+        # `$`-prefixed named arguments are special-variable assignments for
+        # this invocation, not parameters. They become an environment layer
+        # wrapping the call itself: the module's own arguments and its whole
+        # subtree resolve through it, while inner `$` bindings shadow them.
+        special_args = {
+            name: Assignment(name, expr) for name, expr in self.node.named_args.items() if name.startswith("$")
+        }
+        if not special_args:
+            return self.env
+        return self.env.extend_variables(special_args)
 
-    bindings: ParameterBindings
-    call_env: Environment
-    children_env: Environment
-    evaluate: Callable[[ModuleCallStatement, Environment], Any]
-    children: Sequence[ChildInvocation] = field(default_factory=tuple)
+    @cached_property
+    def bindings(self) -> ParameterBindings:
+        # `$`-arguments are not parameters; see ModuleDefinition.bind_parameters
+        # for how the remaining arguments bind.
+        regular_args = {name: expr for name, expr in self.node.named_args.items() if not name.startswith("$")}
+        return self.module.bind_parameters(self.node.positional_args, regular_args)
+
+    @cached_property
+    def children(self) -> tuple[ModuleCallStatement, ...]:
+        # Only module calls are children; variable bindings and module
+        # definitions form the child scope instead (see child_env).
+        return tuple(statement for statement in self.node.children if isinstance(statement, ModuleCallStatement))
+
+    @cached_property
+    def child_env(self) -> Environment:
+        """The scope the call introduces for its children.
+
+        OpenSCAD is declarative: a scope is evaluated in two passes
+        regardless of source order — bind all variables, then define all
+        modules — so a binding may reference a module defined later in the
+        same scope, and closures see sibling variables.
+        """
+
+        # Pass 1 - bind variables (and also stash module definitions for pass 2)
+
+        variables: dict[str, Assignment] = {}
+        definitions: list[ModuleDefinitionStatement] = []
+
+        for statement in self.node.children:
+            if isinstance(statement, VariableBindingStatement):
+                variables[statement.name] = Assignment(statement.name, statement.value)
+            elif isinstance(statement, ModuleDefinitionStatement):
+                definitions.append(statement)
+
+        # Pass 2 - build closures taking the scope's variables into account
+
+        scope_env = self.call_env.extend_variables(variables) if variables else self.call_env
+        if definitions:
+            modules = {
+                definition.name: ModuleClosure.from_definition(definition, scope_env) for definition in definitions
+            }
+            scope_env = scope_env.extend_modules(modules)
+        return scope_env
 
     @cached_property
     def args(self) -> dict[str, Any]:
@@ -65,11 +132,12 @@ class EvalContext:
         return merged
 
     def evaluate_children(self) -> list[Any]:
-        """Evaluate every child invocation, flattening multi-geometry
-        results and dropping empty ones."""
+        """Evaluate every child, flattening multi-geometry results and
+        dropping empty ones."""
+
         results: list[Any] = []
-        for invocation in self.children:
-            result = self.evaluate(invocation.node, invocation.env)
+        for statement in self.children:
+            result = self.evaluate(statement, self.child_env)
             if result is None:
                 continue
             if isinstance(result, list):

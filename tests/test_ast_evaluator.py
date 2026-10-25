@@ -12,8 +12,8 @@ from manifold_learn.builtins.sphere import SphereModule
 from manifold_learn.builtins.translate import TranslateModule
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
-from manifold_learn.runtime.evaluator import StatementEvaluator
-from manifold_learn.runtime.invocation import EvalContext
+from manifold_learn.runtime.evaluator import evaluate
+from manifold_learn.runtime.invocation import Invocation
 from manifold_learn.runtime.module_definition import BuiltinModule
 from manifold_learn.tree.expression import Assignment, NumberLiteral
 from manifold_learn.tree.statement import ModuleCallStatement
@@ -38,7 +38,7 @@ class RecordingModule(BuiltinModule):
         self._parameters = self.make_parameters(required=required)
         self.calls: list[dict[str, Any]] = []
 
-    def instantiate(self, ctx: EvalContext) -> Manifold:
+    def instantiate(self, ctx: Invocation) -> Manifold:
         self.calls.append(dict(ctx.args))
         return MARKER_GEOMETRY
 
@@ -55,12 +55,12 @@ class ForLoopModule(BuiltinModule):
     """Demonstrates the instantiate contract: an ordinary builtin can
     re-evaluate its body once per value with a fresh binding."""
 
-    def instantiate(self, ctx: EvalContext) -> list[Manifold]:
+    def instantiate(self, ctx: Invocation) -> list[Manifold]:
         results = []
         for value in ctx.args["values"]:
-            env = ctx.children_env.extend_variables({"i": Assignment("i", NumberLiteral(value))})
-            for invocation in ctx.children:
-                results.append(ctx.evaluate(invocation.node, env))
+            env = ctx.child_env.extend_variables({"i": Assignment("i", NumberLiteral(value))})
+            for statement in ctx.children:
+                results.append(ctx.evaluate(statement, env))
         return results
 
     @property
@@ -79,8 +79,8 @@ class SpecialVarProbeModule(BuiltinModule):
     def __init__(self):
         self.calls: list[dict[str, Any]] = []
 
-    def instantiate(self, ctx: EvalContext) -> Manifold:
-        self.calls.append({"$fn": ctx.children_env.lookup_variable("$fn")})
+    def instantiate(self, ctx: Invocation) -> Manifold:
+        self.calls.append({"$fn": ctx.child_env.lookup_variable("$fn")})
         return MARKER_GEOMETRY
 
     @property
@@ -94,7 +94,7 @@ class SpecialVarProbeModule(BuiltinModule):
 
 def evaluate_with_modules(source: str, modules):
     scope = parse_scad(source)
-    return StatementEvaluator(modules).evaluate(scope)
+    return evaluate(scope, modules)
 
 
 ## =========================================================================
@@ -219,7 +219,7 @@ def test_default_parameter_supplied_when_omitted():
 
 def test_children_are_not_evaluated_unless_module_asks():
     class LazyModule(BuiltinModule):
-        def instantiate(self, ctx: EvalContext) -> Manifold:
+        def instantiate(self, ctx: Invocation) -> Manifold:
             return Manifold.cube([2.0, 2.0, 2.0])
 
         @property
@@ -398,6 +398,35 @@ def test_geometry_builtin_accepts_special_variable_argument():
     # solid (a faceted unit sphere has volume below the ideal 4/3*pi).
     result = evaluate_with_modules("sphere($fn = 12);", [SphereModule()])
     assert 0 < result.volume() < 4.18879
+
+
+def test_special_variable_argument_visible_to_sibling_args():
+    # The `$`-overlay wraps the call itself (call_env), so other argument
+    # expressions of the same call resolve through it.
+    probe = RecordingModule("probe")
+    evaluate_with_modules("probe($fn = 36, value = $fn);", [probe])
+    assert probe.calls == [{"value": 36.0}]
+
+
+def test_module_can_inject_special_variable_into_children():
+    # A module can extend child_env before dispatching a child: the child
+    # sees the injected `$`-variable, but nothing outside the module does.
+    class FnInjector(BuiltinModule):
+        def instantiate(self, ctx: Invocation) -> list[Manifold]:
+            env = ctx.child_env.extend_variables({"$fn": Assignment("$fn", NumberLiteral(8.0))})
+            return [ctx.evaluate(statement, env) for statement in ctx.children]
+
+        @property
+        def name(self) -> str:
+            return "fn_injector"
+
+        @property
+        def parameters(self) -> Mapping[str, Assignment]:
+            return {}
+
+    probe = SpecialVarProbeModule()
+    evaluate_with_modules("fn_injector() sv_probe(); sv_probe();", [FnInjector(), probe])
+    assert probe.calls == [{"$fn": 8.0}, {"$fn": None}]
 
 
 ## =========================================================================

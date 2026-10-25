@@ -83,8 +83,7 @@ class ModuleDefinition[Geometry](ABC):
 
         if len(positional_args) > len(parameters):
             raise ValueError(
-                f"Module {self.name!r} takes at most {len(parameters)} positional arguments, "
-                f"got {len(positional_args)}"
+                f"Module {self.name!r} takes at most {len(parameters)} positional arguments, got {len(positional_args)}"
             )
         # Positional arguments bind to the formal parameters in declaration order.
         # Fewer positionals than parameters is legal partial binding; the

@@ -4,13 +4,13 @@ from collections.abc import Mapping
 
 from manifold3d import Manifold
 
-from manifold_learn.runtime.invocation import EvalContext
+from manifold_learn.runtime.invocation import Invocation
 from manifold_learn.runtime.module_definition import BuiltinModule
 from manifold_learn.tree.expression import Assignment, Literal, NumberLiteral
 
 
 class CylinderModule(BuiltinModule):
-    def instantiate(self, ctx: EvalContext) -> Manifold:
+    def instantiate(self, ctx: Invocation) -> Manifold:
         height = ctx.args["h"]
         radius_low = self._resolve_radius(ctx, "r1", "d1", "r", "d")
         radius_high = self._resolve_radius(ctx, "r2", "d2", "r", "d")
@@ -18,7 +18,7 @@ class CylinderModule(BuiltinModule):
         return Manifold.cylinder(height, radius_low, radius_high, 0, center)
 
     @staticmethod
-    def _resolve_radius(ctx: EvalContext, r_name: str, d_name: str, r_common: str, d_common: str) -> float:
+    def _resolve_radius(ctx: Invocation, r_name: str, d_name: str, r_common: str, d_common: str) -> float:
         """Resolve a cylinder radius from the radius/diameter parameters,
         preferring the specific ``rN``/``dN`` over the common ``r``/``d``."""
         for name in (r_name, d_name, r_common, d_common):
