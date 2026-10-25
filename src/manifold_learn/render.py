@@ -1,12 +1,12 @@
 import click
 import trimesh
-from antlr4 import InputStream, CommonTokenStream
+from antlr4 import CommonTokenStream, InputStream
 
-from manifold_learn.tree import ModuleCallStatement, AstOpenSCADVisitor
 from manifold_learn.builtins import BUILTIN_MODULES
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 from manifold_learn.runtime.evaluator import StatementEvaluator
+from manifold_learn.tree import AstOpenSCADVisitor, ModuleCallStatement
 
 
 def parse_scad(source: str) -> ModuleCallStatement:
@@ -34,15 +34,15 @@ def manifold2trimesh(manifold):
 @click.argument('filename', type=click.Path(exists=True))
 def render(filename: str):
     print(filename)
-    with open(filename, 'r') as f:
+    with open(filename) as f:
         content = f.read()
     ast = parse_scad(content)
     modules =(c() for c in BUILTIN_MODULES)
     evaluator = StatementEvaluator(modules)
     manifold = evaluator.evaluate(ast)
     mesh = manifold2trimesh(manifold)
-    # mesh.show()
-    trimesh.exchange.export.export_mesh(mesh, "cube2.stl", "stl")
+    mesh.show()
+    # trimesh.exchange.export.export_mesh(mesh, "cube2.stl", "stl")
 
 if __name__ == '__main__':
     render()

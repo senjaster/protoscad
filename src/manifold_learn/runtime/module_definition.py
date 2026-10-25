@@ -2,15 +2,33 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypeVar
 
 from manifold_learn.tree.expression import Assignment, Undefined
 
 if TYPE_CHECKING:
-    from manifold_learn.tree.expression import Expression
     from manifold_learn.runtime.invocation import EvalContext
+    from manifold_learn.tree.expression import Expression
 
 Geometry = TypeVar("Geometry")
+
+
+@dataclass(frozen=True)
+class ParameterBindings:
+    """Bound module parameters, unevaluated, split by the scope in which
+    each expression must resolve.
+
+    - ``explicit``: arguments supplied at the call site — they resolve in
+      the caller's scope.
+    - ``defaults``: parameters the caller did not supply — their default
+      expressions resolve at the module's definition site (the same lexical
+      scope as the body; this is what makes ``use``-style library defaults
+      work).
+    """
+
+    explicit: Mapping[str, Assignment]
+    defaults: Mapping[str, Assignment]
 
 
 class ModuleDefinition[Geometry](ABC):
@@ -48,8 +66,12 @@ class ModuleDefinition[Geometry](ABC):
 
     def bind_parameters(
         self, positional_args: list[Expression], named_args: dict[str, Expression]
-    ) -> Mapping[str, Assignment]:
+    ) -> ParameterBindings:
         """Bind the given arguments to the parameters of this module.
+
+        ``$``-prefixed named arguments must be diverted to the special-
+        variable overlay by the caller before binding; they are not
+        parameters, so passing one through is an unknown-parameter error.
 
         The arguments are bound in the following order:
         1. Positional arguments
@@ -57,22 +79,28 @@ class ModuleDefinition[Geometry](ABC):
         3. Default values
         """
         parameters = self.parameters
-        bound: dict[str, Assignment] = {}
+        explicit: dict[str, Assignment] = {}
 
+        if len(positional_args) > len(parameters):
+            raise ValueError(
+                f"Module {self.name!r} takes at most {len(parameters)} positional arguments, "
+                f"got {len(positional_args)}"
+            )
         # Positional arguments bind to the formal parameters in declaration order.
+        # Fewer positionals than parameters is legal partial binding; the
+        # length check above already rejected the opposite.
         for name, arg in zip(parameters.keys(), positional_args, strict=False):
-            bound[name] = Assignment(name, arg)
+            explicit[name] = Assignment(name, arg)
 
         # Named arguments bind by name and take precedence over positional.
         for name, arg in named_args.items():
-            bound[name] = Assignment(name, arg)
+            if name not in parameters:
+                raise ValueError(f"Unknown parameter {name!r} for module {self.name!r}")
+            explicit[name] = Assignment(name, arg)
 
         # Any parameter not bound above keeps its default value.
-        for name, assignment in parameters.items():
-            if name not in bound:
-                bound[name] = assignment
-
-        return bound
+        defaults = {name: assignment for name, assignment in parameters.items() if name not in explicit}
+        return ParameterBindings(explicit=explicit, defaults=defaults)
 
 
 class BuiltinModule[Geometry](ModuleDefinition, ABC):

@@ -3,6 +3,8 @@ from __future__ import annotations
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
+from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
+from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 from manifold_learn.tree.expression import (
     ArrayLiteral,
     Assignment,
@@ -18,8 +20,6 @@ from manifold_learn.tree.statement import (
     VariableBindingStatement,
 )
 from manifold_learn.tree.visitor import AstOpenSCADVisitor
-from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
-from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 
 
 def parse_scad(source: str) -> ModuleCallStatement:

@@ -7,16 +7,17 @@ import pytest
 from antlr4 import CommonTokenStream, InputStream
 from manifold3d import Manifold
 
-from manifold_learn.tree.expression import Assignment, NumberLiteral
-from manifold_learn.tree.statement import ModuleCallStatement
-from manifold_learn.tree.visitor import AstOpenSCADVisitor
 from manifold_learn.builtins.cube import CubeModule
+from manifold_learn.builtins.sphere import SphereModule
 from manifold_learn.builtins.translate import TranslateModule
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 from manifold_learn.runtime.evaluator import StatementEvaluator
 from manifold_learn.runtime.invocation import EvalContext
 from manifold_learn.runtime.module_definition import BuiltinModule
+from manifold_learn.tree.expression import Assignment, NumberLiteral
+from manifold_learn.tree.statement import ModuleCallStatement
+from manifold_learn.tree.visitor import AstOpenSCADVisitor
 
 MARKER_GEOMETRY = Manifold.cube([1.0, 1.0, 1.0])
 
@@ -57,7 +58,7 @@ class ForLoopModule(BuiltinModule):
     def instantiate(self, ctx: EvalContext) -> list[Manifold]:
         results = []
         for value in ctx.args["values"]:
-            env = ctx.env.extend_variables({"i": Assignment("i", NumberLiteral(value))})
+            env = ctx.children_env.extend_variables({"i": Assignment("i", NumberLiteral(value))})
             for invocation in ctx.children:
                 results.append(ctx.evaluate(invocation.node, env))
         return results
@@ -69,6 +70,26 @@ class ForLoopModule(BuiltinModule):
     @property
     def parameters(self) -> Mapping[str, Assignment]:
         return self.make_parameters(required=("values",))
+
+
+class SpecialVarProbeModule(BuiltinModule):
+    """Records the `$fn` value visible at the point where this module is
+    instantiated (i.e. what a geometry builtin would consume there)."""
+
+    def __init__(self):
+        self.calls: list[dict[str, Any]] = []
+
+    def instantiate(self, ctx: EvalContext) -> Manifold:
+        self.calls.append({"$fn": ctx.children_env.lookup_variable("$fn")})
+        return MARKER_GEOMETRY
+
+    @property
+    def name(self) -> str:
+        return "sv_probe"
+
+    @property
+    def parameters(self) -> Mapping[str, Assignment]:
+        return {}
 
 
 def evaluate_with_modules(source: str, modules):
@@ -311,6 +332,130 @@ def test_user_module_body_uses_geometry_modules():
         [CubeModule(), TranslateModule()],
     )
     assert result.volume() == pytest.approx(1.0)
+
+
+def test_user_module_default_resolves_in_definition_scope():
+    # A default expression follows the definition-site binding (width = 5),
+    # not the call-site shadow (width = 100 inside the union).
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "width = 5; module Foo(b = width * 2) { probe(b); } union() { width = 100; Foo(); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 10.0}]
+
+
+def test_user_module_explicit_arg_resolves_in_call_scope():
+    # Explicit arguments are caller-scoped: width inside the union is 100.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "width = 5; module Foo(b) { probe(b); } union() { width = 100; Foo(width); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 100.0}]
+
+
+def test_user_module_missing_required_parameter_raises():
+    probe = RecordingModule("probe")
+    with pytest.raises(ValueError, match="Undefined parameter"):
+        evaluate_with_modules("module Foo(a) { probe(a); } Foo();", [probe])
+
+
+## =========================================================================
+# Special-variable arguments (`module_name(..., $fn = 36)`)
+
+
+def test_special_variable_argument_scopes_to_subtree():
+    # `$fn = 36` as an argument binds the special variable for the subtree
+    # of the call only — not for siblings after it.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "union($fn = 36) probe($fn); probe($fn);",
+        [probe],
+    )
+    assert probe.calls == [{"value": 36.0}, {"value": None}]
+
+
+def test_special_variable_argument_visible_in_user_module_body():
+    # The overlay reaches user module bodies through the dynamic chain.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Foo() { probe($fn); } Foo($fn = 36);",
+        [probe],
+    )
+    assert probe.calls == [{"value": 36.0}]
+
+
+def test_builtin_reads_special_variable_argument():
+    probe = SpecialVarProbeModule()
+    evaluate_with_modules("sv_probe($fn = 36); sv_probe();", [probe])
+    assert probe.calls == [{"$fn": 36.0}, {"$fn": None}]
+
+
+def test_geometry_builtin_accepts_special_variable_argument():
+    # $fn is routed into the subtree environment; SphereModule does not
+    # consume it yet, so this only asserts the call evaluates to a proper
+    # solid (a faceted unit sphere has volume below the ideal 4/3*pi).
+    result = evaluate_with_modules("sphere($fn = 12);", [SphereModule()])
+    assert 0 < result.volume() < 4.18879
+
+
+## =========================================================================
+# Argument validation
+
+
+def test_unknown_named_argument_raises():
+    with pytest.raises(ValueError, match="Unknown parameter 'bogus'"):
+        evaluate_with_modules("cube(size = 1, bogus = 2);", [CubeModule()])
+
+
+def test_too_many_positional_arguments_raise():
+    with pytest.raises(ValueError, match="positional"):
+        evaluate_with_modules("cube(1, 2, 3);", [CubeModule()])
+
+
+## =========================================================================
+# Divergence from OpenSCAD: `$`-arguments on builtin calls
+#
+# Verified against real OpenSCAD:
+#   union($fn=360) sphere(1);                          -> COARSE sphere
+#   module mysphere() {...} mysphere($fn=360) sphere(1); -> both spheres fine
+#   let($fn=360) sphere(1);                            -> fine sphere
+#
+# In OpenSCAD, `$`-arguments extend only the context the called module
+# itself runs in (that is why the leaf idiom `sphere($fn=100)` works); a
+# builtin's children evaluate in the calling scope, untouched. We extend
+# the whole subtree scope for every call, builtin or user — simpler and
+# uniform, at the cost of the divergence pinned below.
+# See docs/QUIRKS.md.
+
+
+def test_divergence_builtin_special_args_reach_children():
+    # OpenSCAD renders `union($fn=360) sphere(1);` with a COARSE sphere:
+    # the child never sees the special argument on the builtin call.
+    # We deliberately let it through.
+    probe = SpecialVarProbeModule()
+    evaluate_with_modules("union($fn = 360) sv_probe();", [probe])
+    assert probe.calls == [{"$fn": 360.0}]
+
+
+def test_user_module_special_args_match_openscad():
+    # OpenSCAD renders both the body sphere and the children() sphere
+    # fine-grained for `mysphere($fn=360) sphere(1);` — we match: the
+    # special argument is visible in the body and in children() alike.
+    probe = SpecialVarProbeModule()
+    evaluate_with_modules(
+        "module mysphere() { sv_probe(); children(0); } mysphere($fn = 360) sv_probe();",
+        [probe],
+    )
+    assert probe.calls == [{"$fn": 360.0}, {"$fn": 360.0}]
+
+
+def test_let_special_args_match_openscad():
+    # OpenSCAD renders `let($fn=360) sphere(1);` fine-grained — we match.
+    probe = SpecialVarProbeModule()
+    evaluate_with_modules("let($fn = 360) sv_probe();", [probe])
+    assert probe.calls == [{"$fn": 360.0}]
 
 
 ## =========================================================================

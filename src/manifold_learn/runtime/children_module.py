@@ -1,8 +1,8 @@
 from collections.abc import Mapping, Sequence
 
-from manifold_learn.tree.expression import Assignment
 from manifold_learn.runtime.invocation import ChildInvocation, EvalContext
 from manifold_learn.runtime.module_definition import BuiltinModule, Geometry
+from manifold_learn.tree.expression import Assignment
 
 
 class ChildrenModule(BuiltinModule):

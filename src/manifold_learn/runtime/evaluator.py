@@ -3,17 +3,17 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+from manifold_learn.builtins import LetModule, UnionModule
+from manifold_learn.runtime.environment import Environment
+from manifold_learn.runtime.invocation import ChildInvocation, EvalContext
+from manifold_learn.runtime.module_closure import ModuleClosure
+from manifold_learn.runtime.module_definition import ModuleDefinition
 from manifold_learn.tree.expression import Assignment
 from manifold_learn.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
     VariableBindingStatement,
 )
-from manifold_learn.builtins import LetModule, UnionModule
-from manifold_learn.runtime.environment import Environment
-from manifold_learn.runtime.invocation import ChildInvocation, EvalContext
-from manifold_learn.runtime.module_closure import ModuleClosure
-from manifold_learn.runtime.module_definition import ModuleDefinition
 
 
 class StatementEvaluator:
@@ -32,10 +32,9 @@ class StatementEvaluator:
         # level and module bodies, and the let scoping construct.
         self._modules.setdefault("union", union)
         self._modules.setdefault("let", LetModule())
-        print(list(self._modules.keys()))
 
     def evaluate(self, root: ModuleCallStatement) -> Any:
-        """"""
+        """Evaluate the root scope produced by the visitor."""
         env = Environment(modules=self._modules)
         return self._evaluate_statement(root, env)
 
@@ -76,10 +75,20 @@ class StatementEvaluator:
         if module_def is None:
             raise ValueError(f"Unknown module: {node.module!r}")
 
-        children_env = self._build_children_env(node, env)
+        # `$`-prefixed named arguments are special-variable assignments for
+        # the subtree, not parameters. They become an environment layer under
+        # the node's own scope: inner `$` bindings shadow them, while their
+        # value expressions still resolve in the calling scope.
+        special_args = {
+            name: Assignment(name, expr) for name, expr in node.named_args.items() if name.startswith("$")
+        }
+        regular_args = {name: expr for name, expr in node.named_args.items() if not name.startswith("$")}
+        call_env = env
+        if special_args:
+            env = env.extend_variables(special_args)
 
-        bound = module_def.bind_parameters(node.positional_args, node.named_args)
-        args = {name: assignment.value.evaluate(env) for name, assignment in bound.items()}
+        bindings = module_def.bind_parameters(node.positional_args, regular_args)
+        children_env = self._build_children_env(node, env)
         children = [
             ChildInvocation(statement, children_env)
             for statement in node.children
@@ -87,9 +96,10 @@ class StatementEvaluator:
         ]
         return module_def.instantiate(
             EvalContext(
-                args=args,
+                bindings=bindings,
+                call_env=call_env,
+                children_env=children_env,
                 children=children,
-                env=children_env,
                 evaluate=self._evaluate_statement,
             )
         )

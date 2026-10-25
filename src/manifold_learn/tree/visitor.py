@@ -1,3 +1,5 @@
+from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
+from manifold_learn.grammar.OpenSCADVisitor import OpenSCADVisitor
 from manifold_learn.tree.expression import (
     ArrayLiteral,
     Assignment,
@@ -14,8 +16,6 @@ from manifold_learn.tree.statement import (
     Statement,
     VariableBindingStatement,
 )
-from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
-from manifold_learn.grammar.OpenSCADVisitor import OpenSCADVisitor
 
 
 class AstOpenSCADVisitor(OpenSCADVisitor):

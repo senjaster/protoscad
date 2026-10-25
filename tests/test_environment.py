@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from manifold_learn.tree.expression import Assignment, NumberLiteral
 from manifold_learn.runtime.environment import Environment
+from manifold_learn.tree.expression import Assignment, NumberLiteral
 
 
 def make_env(**variables: float) -> Environment:

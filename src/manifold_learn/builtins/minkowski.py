@@ -4,9 +4,9 @@ from collections.abc import Mapping
 
 from manifold3d import Manifold
 
-from manifold_learn.tree.expression import Assignment
 from manifold_learn.runtime.invocation import EvalContext
 from manifold_learn.runtime.module_definition import BuiltinModule
+from manifold_learn.tree.expression import Assignment
 
 
 class MinkowskiModule(BuiltinModule):

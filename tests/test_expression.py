@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from manifold_learn.runtime.environment import Environment
 from manifold_learn.tree.expression import (
     ArrayLiteral,
     Assignment,
@@ -12,7 +13,6 @@ from manifold_learn.tree.expression import (
     Raw,
     Variable,
 )
-from manifold_learn.runtime.environment import Environment
 
 
 @pytest.fixture
