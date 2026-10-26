@@ -1,8 +1,8 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
-
 
 from manifold_learn.runtime.environment import Environment
 from manifold_learn.runtime.module_closure import ModuleClosure
@@ -89,24 +89,27 @@ class Invocation:
     def child_env(self) -> Environment:
         """The scope the call introduces for its children.
 
-        OpenSCAD is declarative: a scope is evaluated in two passes
-        regardless of source order — bind all variables, then define all
-        modules — so a binding may reference a module defined later in the
-        same scope, and closures see sibling variables.
+        The scope's variable map is built by the environment's
+        ``BindingResolver`` strategy (see ``runtime.resolver``): the default
+        keeps bindings lazy — forced on first use, memoized, with cycle
+        detection on the environment — while the OpenSCAD policy evaluates
+        eagerly into constants. Either way the scope is set up even when
+        there are no child calls, so unknown-name errors in bindings
+        surface. Call arguments and module bodies see the same map
+        regardless of source order.
         """
+        bindings = [s for s in self.node.children if isinstance(s, VariableBindingStatement)]
+        variables = self.call_env.resolver.resolve(self.call_env, bindings)
+        return self.child_scope(variables)
 
-        # Pass 1 - bind variables (and also stash module definitions for pass 2)
-
-        variables: dict[str, Assignment] = {}
+    def child_scope(self, variables: dict[str, Assignment]) -> Environment:
+        """The child scope carrying the given (already resolved) variables
+        plus this scope's module definitions."""
         definitions: list[ModuleDefinitionStatement] = []
 
         for statement in self.node.children:
-            if isinstance(statement, VariableBindingStatement):
-                variables[statement.name] = Assignment(statement.name, statement.value)
-            elif isinstance(statement, ModuleDefinitionStatement):
+            if isinstance(statement, ModuleDefinitionStatement):
                 definitions.append(statement)
-
-        # Pass 2 - build closures taking the scope's variables into account
 
         scope_env = self.call_env.extend_variables(variables) if variables else self.call_env
         if definitions:
@@ -133,11 +136,16 @@ class Invocation:
 
     def evaluate_children(self) -> list[Any]:
         """Evaluate every child, flattening multi-geometry results and
-        dropping empty ones."""
+        dropping empty ones.
 
+        The child scope (and with it the scope's variable bindings) is
+        built even when there are no child calls: bindings evaluate
+        eagerly, like OpenSCAD's compile-time scope setup.
+        """
+        child_env = self.child_env
         results: list[Any] = []
         for statement in self.children:
-            result = self.evaluate(statement, self.child_env)
+            result = self.evaluate(statement, child_env)
             if result is None:
                 continue
             if isinstance(result, list):

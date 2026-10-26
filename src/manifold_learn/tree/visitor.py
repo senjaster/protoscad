@@ -4,11 +4,13 @@ from manifold_learn.tree.expression import (
     ArrayLiteral,
     Assignment,
     BinaryOp,
+    Expression,
     NumberLiteral,
     Paren,
     Raw,
     Undefined,
     Variable,
+    fold,
 )
 from manifold_learn.tree.statement import (
     ModuleCallStatement,
@@ -193,29 +195,29 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
         return Variable(ctx.IDENT().getText())
 
     # Visit a parse tree produced by OpenSCADParser#ArrayExpr.
-    def visitArrayExpr(self, ctx: OpenSCADParser.ArrayExprContext) -> ArrayLiteral:
+    def visitArrayExpr(self, ctx: OpenSCADParser.ArrayExprContext) -> Expression:
         elements = self.visit(ctx.exprList()) if ctx.exprList() is not None else []
-        return ArrayLiteral(elements)
+        return fold(ArrayLiteral(elements))
 
     # Visit a parse tree produced by OpenSCADParser#NumberExpr.
     def visitNumberExpr(self, ctx: OpenSCADParser.NumberExprContext) -> NumberLiteral:
         return NumberLiteral(float(ctx.NUMBER().getText()))
 
     # Visit a parse tree produced by OpenSCADParser#AdditiveExpr.
-    def visitAdditiveExpr(self, ctx: OpenSCADParser.AdditiveExprContext) -> BinaryOp:
+    def visitAdditiveExpr(self, ctx: OpenSCADParser.AdditiveExprContext) -> Expression:
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right)
+        return fold(BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right))
 
     # Visit a parse tree produced by OpenSCADParser#MultiplicativeExpr.
-    def visitMultiplicativeExpr(self, ctx: OpenSCADParser.MultiplicativeExprContext) -> BinaryOp:
+    def visitMultiplicativeExpr(self, ctx: OpenSCADParser.MultiplicativeExprContext) -> Expression:
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right)
+        return fold(BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right))
 
     # Visit a parse tree produced by OpenSCADParser#ParenExpr.
-    def visitParenExpr(self, ctx: OpenSCADParser.ParenExprContext) -> Paren:
-        return Paren(self.visit(ctx.expr()))
+    def visitParenExpr(self, ctx: OpenSCADParser.ParenExprContext) -> Expression:
+        return fold(Paren(self.visit(ctx.expr())))
 
     # Visit a parse tree produced by OpenSCADParser#exprList.
     def visitExprList(self, ctx: OpenSCADParser.ExprListContext) -> list:

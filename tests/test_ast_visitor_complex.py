@@ -5,7 +5,7 @@ from antlr4.error.ErrorListener import ErrorListener
 
 from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
 from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
-from manifold_learn.tree.expression import ArrayLiteral, BinaryOp, NumberLiteral, Variable
+from manifold_learn.tree.expression import ArrayLiteral, BinaryOp, Literal, NumberLiteral, Variable
 from manifold_learn.tree.statement import (
     ModuleCallStatement,
     VariableBindingStatement,
@@ -126,8 +126,8 @@ def test_chained_scale_translate_box_nesting():
     scale = scope.children[3]
     assert isinstance(scale, ModuleCallStatement)
     assert scale.module == "scale"
-    # Array literal builds a list of element expressions
-    assert scale.positional_args == [ArrayLiteral([NumberLiteral(1.0), NumberLiteral(2.0), NumberLiteral(1.0)])]
+    # Array literal of constants folds to a Literal list
+    assert scale.positional_args == [Literal([1.0, 2.0, 1.0])]
 
     translate = scale.children[0]
     assert isinstance(translate, ModuleCallStatement)
@@ -166,13 +166,11 @@ def test_chained_scale_translate_box_nesting():
     inner_translate = translate.children[3]
     assert isinstance(inner_translate, ModuleCallStatement)
     assert inner_translate.module == "translate"
-    assert inner_translate.positional_args == [
-        ArrayLiteral([NumberLiteral(0.0), NumberLiteral(0.0), NumberLiteral(1.0)])
-    ]
+    assert inner_translate.positional_args == [Literal([0.0, 0.0, 1.0])]
     cube = inner_translate.children[0]
     assert isinstance(cube, ModuleCallStatement)
     assert cube.module == "cube"
-    assert cube.positional_args == [ArrayLiteral([NumberLiteral(1.0), NumberLiteral(1.0), NumberLiteral(1.0)])]
+    assert cube.positional_args == [Literal([1.0, 1.0, 1.0])]
 
 
 def test_let_binding_becomes_variable_binding_statement():
@@ -218,7 +216,7 @@ def test_rotate_chain_uses_top_level_variable():
     rotate = scope.children[5]
     assert isinstance(rotate, ModuleCallStatement)
     assert rotate.module == "rotate"
-    assert rotate.positional_args == [ArrayLiteral([NumberLiteral(0.0), NumberLiteral(0.0), NumberLiteral(45.0)])]
+    assert rotate.positional_args == [Literal([0.0, 0.0, 45.0])]
     box = rotate.children[0]
     assert isinstance(box, ModuleCallStatement)
     assert box.module == "box"

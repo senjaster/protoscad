@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
 from manifold_learn.runtime.environment import Environment
-from manifold_learn.tree.expression import Assignment, NumberLiteral
+from manifold_learn.tree.expression import Assignment, BinaryOp, Expression, NumberLiteral, Variable
 
 
 def make_env(**variables: float) -> Environment:
@@ -95,3 +97,52 @@ def test_dollar_variable_shadows_dynamic_value_inside_body():
 def test_dollar_variable_missing_returns_none():
     body = Environment.for_module_body({}, make_env(), make_env())
     assert body.lookup_variable("$fn") is None
+
+
+## =========================================================================
+#  Memoized binding values
+
+
+class CountingExpression(Expression):
+    """A non-constant node counting how many times it was evaluated."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def evaluate(self, env: Environment) -> float:
+        self.calls += 1
+        return 42.0
+
+
+def test_binding_evaluated_once_per_scope():
+    counting = CountingExpression()
+    env = Environment(variables={"x": Assignment("x", counting)})
+    assert env.lookup_variable("x") == 42.0
+    assert env.lookup_variable("x") == 42.0
+    assert counting.calls == 1
+
+
+def test_sibling_referenced_twice_evaluated_once():
+    # x = y + y: both `y` reads hit the memoized value, so the binding
+    # behind `y` runs once.
+    counting = CountingExpression()
+    env = Environment(
+        variables={
+            "y": Assignment("y", counting),
+            "x": Assignment("x", BinaryOp("+", Variable("y"), Variable("y"))),
+        }
+    )
+    assert env.lookup_variable("x") == 84.0
+    assert env.lookup_variable("x") == 84.0
+    assert counting.calls == 1
+
+
+def test_failed_evaluation_is_not_cached():
+    class FailingExpression(Expression):
+        def evaluate(self, env: Environment) -> float:
+            raise RuntimeError("boom")
+
+    env = Environment(variables={"x": Assignment("x", FailingExpression())})
+    for _ in range(2):
+        with pytest.raises(RuntimeError, match="boom"):
+            env.lookup_variable("x")

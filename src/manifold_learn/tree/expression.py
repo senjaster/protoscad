@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import dataclasses
+import operator
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +15,26 @@ class Expression:
 
     def evaluate(self, env: Environment) -> Any:
         raise NotImplementedError
+
+    def referenced_names(self) -> set[str]:
+        """The names read by this expression (its ``Variable`` leaves).
+
+        Implemented once here by walking the dataclass fields: any field
+        that is an ``Expression`` (or a list of them) is a child subtree,
+        so new node types participate automatically — as do test doubles
+        built from ``Expression``. Only leaf semantics need an override
+        (see ``Variable``).
+        """
+        names: set[str] = set()
+        for field in dataclasses.fields(self):  # type: ignore[arg-type]
+            value = getattr(self, field.name)
+            if isinstance(value, Expression):
+                names |= value.referenced_names()
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, Expression):
+                        names |= item.referenced_names()
+        return names
 
 
 @dataclass
@@ -45,6 +68,9 @@ class Variable(Expression):
     def evaluate(self, env: Environment) -> Any:
         return env.lookup_variable(self.name)
 
+    def referenced_names(self) -> set[str]:
+        return {self.name}
+
 
 @dataclass
 class Assignment:
@@ -58,24 +84,33 @@ class Assignment:
     value: Expression
 
 
+# Runtime semantics of the binary operators, shared by evaluation and
+# constant folding. New operators are added here and in the grammar only.
+OPERATORS: dict[str, Callable[[Any, Any], Any]] = {
+    "+": operator.add,
+    "-": operator.sub,
+    "*": operator.mul,
+    "/": operator.truediv,
+}
+
+
 @dataclass
 class BinaryOp(Expression):
     op: str
     left: Expression
     right: Expression
 
+    def __post_init__(self) -> None:
+        # Resolved once: evaluate() runs on every lookup of every node.
+        # An unknown operator cannot come from the grammar, so failing at
+        # construction is the right place.
+        try:
+            self._fn = OPERATORS[self.op]
+        except KeyError:
+            raise ValueError(f"Unknown binary operator: {self.op!r}") from None
+
     def evaluate(self, env: Environment) -> Any:
-        left = self.left.evaluate(env)
-        right = self.right.evaluate(env)
-        if self.op == "+":
-            return left + right
-        if self.op == "-":
-            return left - right
-        if self.op == "*":
-            return left * right
-        if self.op == "/":
-            return left / right
-        raise ValueError(f"Unknown binary operator: {self.op!r}")
+        return self._fn(self.left.evaluate(env), self.right.evaluate(env))
 
 
 @dataclass
@@ -115,3 +150,50 @@ class Undefined(Expression):
 
     def evaluate(self, env: Environment) -> Any:
         raise ValueError("Undefined parameter value")
+
+
+def _constant(node: Expression) -> tuple[bool, Any]:
+    """Whether ``node`` is a constant, and its Python value if so."""
+    if isinstance(node, NumberLiteral | Literal):
+        return True, node.value
+    if isinstance(node, Raw):
+        return True, node.text
+    return False, None
+
+
+def fold(node: Expression) -> Expression:
+    """Constant-fold an expression subtree, bottom-up.
+
+    Literal-only arithmetic collapses to a single literal, and an array of
+    constants to a ``Literal`` list — the shapes real .scad files are full
+    of (``[6, 10, 10]``, ``$fn/4 + 2``). Arithmetic on two number literals
+    stays a ``NumberLiteral``. Folding is best-effort: an operation that
+    would fail at run time (``1/0``, ``[1]+2``) is left unfolded, so the
+    error surfaces at evaluation, in context.
+    """
+    if isinstance(node, BinaryOp):
+        left, right = fold(node.left), fold(node.right)
+        left_constant, left_value = _constant(left)
+        right_constant, right_value = _constant(right)
+        if left_constant and right_constant:
+            try:
+                value = OPERATORS[node.op](left_value, right_value)
+            except Exception:
+                # Folding must never fail construction on an unfoldable
+                # operation.
+                return BinaryOp(node.op, left, right)
+            if isinstance(left, NumberLiteral) and isinstance(right, NumberLiteral):
+                return NumberLiteral(value)
+            return Literal(value)
+        return BinaryOp(node.op, left, right)
+    if isinstance(node, Paren):
+        inner = fold(node.inner)
+        is_constant, _ = _constant(inner)
+        return inner if is_constant else Paren(inner)
+    if isinstance(node, ArrayLiteral):
+        elements = [fold(element) for element in node.elements]
+        constants = [_constant(element) for element in elements]
+        if all(is_constant for is_constant, _ in constants):
+            return Literal([value for _, value in constants])
+        return ArrayLiteral(elements)
+    return node

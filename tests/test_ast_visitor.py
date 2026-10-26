@@ -9,6 +9,7 @@ from manifold_learn.tree.expression import (
     ArrayLiteral,
     Assignment,
     BinaryOp,
+    Literal,
     NumberLiteral,
     Paren,
     Undefined,
@@ -87,7 +88,7 @@ def test_named_args():
 def test_mixed_positional_and_named_args():
     scope = parse_scad("cube([10,10,10], center=true);")
     node = single_call(scope)
-    assert node.positional_args == [ArrayLiteral([NumberLiteral(10.0), NumberLiteral(10.0), NumberLiteral(10.0)])]
+    assert node.positional_args == [Literal([10.0, 10.0, 10.0])]
     assert node.named_args == {"center": Variable("true")}
 
 
@@ -237,16 +238,13 @@ def test_let_multiple_bindings():
 
 
 def test_assignment_is_variable_binding_statement():
-    scope = parse_scad("var1 = (10+20)/3;")
+    scope = parse_scad("var1 = size/3;")
     assert len(scope.children) == 1
     binding = scope.children[0]
     assert isinstance(binding, VariableBindingStatement)
     assert binding.name == "var1"
-    assert binding.value == BinaryOp(
-        "/",
-        Paren(BinaryOp("+", NumberLiteral(10.0), NumberLiteral(20.0))),
-        NumberLiteral(3.0),
-    )
+    # Constant parts of the right-hand side are folded at construction.
+    assert binding.value == BinaryOp("/", Variable("size"), NumberLiteral(3.0))
 
 
 def test_assignment_inside_block_scopes_to_enclosing_scope():
@@ -277,23 +275,25 @@ def test_variable_expression():
 
 
 def test_additive_expression():
-    scope = parse_scad("cube(10+20);")
+    scope = parse_scad("cube(10+size);")
     expr = single_call(scope).positional_args[0]
     assert isinstance(expr, BinaryOp)
     assert expr.op == "+"
     assert expr.left == NumberLiteral(10.0)
-    assert expr.right == NumberLiteral(20.0)
+    assert expr.right == Variable("size")
 
 
 def test_multiplicative_expression():
-    scope = parse_scad("cube(10*20);")
+    scope = parse_scad("cube(10*size);")
     expr = single_call(scope).positional_args[0]
     assert isinstance(expr, BinaryOp)
     assert expr.op == "*"
+    assert expr.left == NumberLiteral(10.0)
+    assert expr.right == Variable("size")
 
 
 def test_paren_expression():
-    scope = parse_scad("cube((10+20)/3);")
+    scope = parse_scad("cube((size+20)/3);")
     expr = single_call(scope).positional_args[0]
     assert isinstance(expr, BinaryOp)
     assert expr.op == "/"
@@ -315,7 +315,21 @@ def test_array_literal_builds_list_of_expressions():
 
 def test_empty_array_literal():
     scope = parse_scad("cube([]);")
-    assert single_call(scope).positional_args == [ArrayLiteral([])]
+    assert single_call(scope).positional_args == [Literal([])]
+
+
+## =========================================================================
+#  Constant folding at construction
+
+
+def test_constant_expression_folds_to_number_literal():
+    scope = parse_scad("cube((10+20)/3);")
+    assert single_call(scope).positional_args == [NumberLiteral(10.0)]
+
+
+def test_constant_array_folds_to_literal():
+    scope = parse_scad("cube([1, 2*3, -4]);")
+    assert single_call(scope).positional_args == [Literal([1.0, 6.0, -4.0])]
 
 
 def test_comments_are_ignored():

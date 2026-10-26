@@ -15,6 +15,7 @@ from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
 from manifold_learn.runtime.evaluator import evaluate
 from manifold_learn.runtime.invocation import Invocation
 from manifold_learn.runtime.module_definition import BuiltinModule
+from manifold_learn.runtime.resolver import OpenScadResolver
 from manifold_learn.tree.expression import Assignment, NumberLiteral
 from manifold_learn.tree.statement import ModuleCallStatement
 from manifold_learn.tree.visitor import AstOpenSCADVisitor
@@ -92,13 +93,13 @@ class SpecialVarProbeModule(BuiltinModule):
         return {}
 
 
-def evaluate_with_modules(source: str, modules):
+def evaluate_with_modules(source: str, modules, resolver=None):
     scope = parse_scad(source)
-    return evaluate(scope, modules)
+    return evaluate(scope, modules, resolver=resolver)
 
 
 ## =========================================================================
-#  Variable bindings
+#  Variable bindings (DeclarativeResolver, the default policy)
 
 
 def test_top_level_assignment_visible_to_module_args():
@@ -113,24 +114,157 @@ def test_last_assignment_wins_for_whole_scope():
     assert probe.calls == [{"value": 100.0}]
 
 
-def test_lazy_assignment_reflects_final_scope_values():
-    # Assignments are evaluated lazily against the final scope state, so
-    # depth sees the redefined width (known deviation from OpenSCAD's
-    # eager capture, preserved from the previous evaluator).
+def test_declarative_binding_sees_final_value():
+    # Letrec: a scope is a set of simultaneous definitions, so y sees the
+    # final x (the same outcome OpenSCAD gives for this program).
     probe = RecordingModule("probe")
-    evaluate_with_modules("width = 10; depth = width * 2; width = 100; probe(depth);", [probe])
-    assert probe.calls == [{"value": 200.0}]
+    evaluate_with_modules("x = 1; y = x; x = 10; probe(y); probe(x);", [probe])
+    assert probe.calls == [{"value": 10.0}, {"value": 10.0}]
+
+
+def test_declarative_self_reference_uses_parent():
+    # The shadowing idiom survives: inside a real scope, `width = width/2`
+    # reads the enclosing width on its right-hand side.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "width = 100; union() { width = width / 2; probe(width); } probe(width);",
+        [probe],
+    )
+    assert probe.calls == [{"value": 50.0}, {"value": 100.0}]
+
+
+def test_declarative_local_shadows_parent_whole_scope():
+    # A name bound anywhere in the scope is local to the whole scope, so
+    # `y = m` reads the scope's own final m — not the parent's m=5. (Real
+    # OpenSCAD gives 5 here; this is the deliberate declarative fix.)
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "m = 5; union() { y = m; m = 1; probe(y); } probe(m);",
+        [probe],
+    )
+    assert probe.calls == [{"value": 1.0}, {"value": 5.0}]
+
+
+def test_declarative_shadowed_binding_never_evaluates():
+    # Redefinition replaces the definition: the earlier `q = zz` never
+    # exists, so the unknown zz is not an error (same as OpenSCAD mode).
+    probe = RecordingModule("probe")
+    evaluate_with_modules("q = zz; q = 7; probe(q);", [probe])
+    assert probe.calls == [{"value": 7.0}]
+
+
+def test_declarative_unknown_variable_in_binding_raises():
+    # Unknown names in bindings are rejected at scope setup, even when the
+    # binding is never used.
+    with pytest.raises(ValueError, match="Unknown variable 'zz'"):
+        evaluate_with_modules("q = zz;", [RecordingModule("probe")])
+
+
+def test_declarative_cycle_errors_when_used():
+    # The final definitions x = y+1 and y = x form a cycle; forcing it
+    # raises with the forcing path.
+    probe = RecordingModule("probe")
+    with pytest.raises(ValueError, match="Circular variable dependency: x -> y -> x"):
+        evaluate_with_modules("x = 1; y = x; x = y + 1; probe(x);", [probe])
+
+
+def test_declarative_unused_cycle_is_tolerated():
+    # Bindings are forced on first use: an unguarded cycle that nothing
+    # reads is dead code, not an error (as in Haskell or Nix).
+    probe = RecordingModule("probe")
+    evaluate_with_modules("x = y; y = x; probe(1);", [probe])
+    assert probe.calls == [{"value": 1.0}]
 
 
 def test_declarative_forward_reference_in_scope():
-    # OpenSCAD is declarative: a module call may precede the variable binding
-    # and module definition it depends on within the same scope.
+    # A module call may precede the variable binding and module definition
+    # it depends on within the same scope: calls see the scope's map
+    # regardless of source order.
     probe = RecordingModule("probe")
     evaluate_with_modules(
         "my_module(var1); module my_module(x) { probe(x); } var1 = 10;",
         [probe],
     )
     assert probe.calls == [{"value": 10.0}]
+
+
+def test_call_argument_sees_final_value_of_redefined_variable():
+    # Verified against real OpenSCAD: `cube_size=5; cube(cube_size);
+    # cube_size=20;` produces a 20-unit cube — call arguments run after
+    # the scope's bindings, so they see final values in both modes.
+    class SizeProbe(BuiltinModule):
+        def __init__(self):
+            self.sizes: list[Any] = []
+
+        def instantiate(self, ctx: Invocation) -> Manifold:
+            self.sizes.append(ctx.args["size"])
+            return MARKER_GEOMETRY
+
+        @property
+        def name(self) -> str:
+            return "size_probe"
+
+        @property
+        def parameters(self) -> Mapping[str, Assignment]:
+            return self.make_parameters(required=("size",))
+
+    probe = SizeProbe()
+    evaluate_with_modules("s = 5; size_probe(s); s = 20;", [probe])
+    assert probe.sizes == [20.0]
+
+
+## =========================================================================
+#  Variable bindings (OpenScadResolver: OpenSCAD-verified quirks)
+
+
+def test_openscad_binding_sees_final_scope_values():
+    # Verified against real OpenSCAD: `x=1; y=x; x=3;` yields y=3 — a
+    # binding sees the FINAL value of variables first defined before it.
+    probe = RecordingModule("probe")
+    evaluate_with_modules("width = 10; depth = width * 2; width = 100; probe(depth);", [probe], OpenScadResolver())
+    assert probe.calls == [{"value": 200.0}]
+
+
+def test_openscad_use_before_first_definition_raises():
+    # OpenSCAD treats `y = x; x = 10;` as unknown x (warning + undef); we
+    # raise the same case as an error instead of passing None around.
+    probe = RecordingModule("probe")
+    with pytest.raises(ValueError, match="'x' .* before its first assignment"):
+        evaluate_with_modules("y = x; x = 10; probe(y);", [probe], OpenScadResolver())
+
+
+def test_openscad_unknown_variable_in_binding_raises():
+    # Bindings are evaluated eagerly at scope setup, so even an unused
+    # binding with an unknown name fails (OpenSCAD warns; we raise).
+    with pytest.raises(ValueError, match="Unknown variable 'zz'"):
+        evaluate_with_modules("q = zz;", [RecordingModule("probe")], OpenScadResolver())
+
+
+def test_openscad_shadowed_binding_is_never_evaluated():
+    # Only the last binding of a name runs: the earlier `q = zz` (unknown
+    # zz) never evaluates, matching OpenSCAD (verified: no warning).
+    probe = RecordingModule("probe")
+    evaluate_with_modules("q = zz; q = 7; probe(q);", [probe], OpenScadResolver())
+    assert probe.calls == [{"value": 7.0}]
+
+
+def test_openscad_later_first_definition_falls_through_to_parent():
+    # Inside the union, `y = m` precedes m's first local definition, so m
+    # resolves in the parent scope (verified: OpenSCAD yields y=5 and the
+    # outer m stays 5).
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "m = 5; union() { y = m; m = 1; probe(y); } probe(m);",
+        [probe],
+        OpenScadResolver(),
+    )
+    assert probe.calls == [{"value": 5.0}, {"value": 5.0}]
+
+
+def test_openscad_circular_binding_dependency_raises():
+    # OpenSCAD degrades `x=1; y=x; x=y+1;` to undef everywhere; we raise.
+    with pytest.raises(ValueError, match="Circular variable dependency"):
+        evaluate_with_modules("x = 1; y = x; x = y + 1;", [RecordingModule("probe")], OpenScadResolver())
 
 
 ## =========================================================================
