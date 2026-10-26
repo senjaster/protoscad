@@ -1,6 +1,7 @@
 from protoscad.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
+    SourceSpan,
     Statement,
     VariableBindingStatement,
 )
@@ -10,6 +11,7 @@ __all__ = [
     "AstOpenSCADVisitor",
     "ModuleCallStatement",
     "ModuleDefinitionStatement",
+    "SourceSpan",
     "Statement",
     "VariableBindingStatement",
 ]

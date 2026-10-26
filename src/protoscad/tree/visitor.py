@@ -15,6 +15,7 @@ from protoscad.tree.expression import (
 from protoscad.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
+    SourceSpan,
     Statement,
     VariableBindingStatement,
 )
@@ -30,12 +31,39 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
     the caller splices into its own scope. No ``block`` node exists.
     """
 
+    @staticmethod
+    def _span(ctx) -> SourceSpan | None:
+        """The source region a rule context covers, or ``None`` if unknown."""
+        if ctx.start is None or ctx.stop is None:
+            return None
+        return SourceSpan(
+            start_line=ctx.start.line,
+            start_column=ctx.start.column,
+            end_line=ctx.stop.line,
+            end_column=ctx.stop.column + len(ctx.stop.text or ""),
+        )
+
+    @staticmethod
+    def _span_of(statements: list[Statement]) -> SourceSpan | None:
+        """The region from the first to the last statement's span, or ``None``."""
+        spans = [s.span for s in statements if s is not None and s.span is not None]
+        if not spans:
+            return None
+        return SourceSpan(
+            start_line=spans[0].start_line,
+            start_column=spans[0].start_column,
+            end_line=spans[-1].end_line,
+            end_column=spans[-1].end_column,
+        )
+
     # Visit a parse tree produced by OpenSCADParser#start.
     def visitStart(self, ctx: OpenSCADParser.StartContext) -> ModuleCallStatement:
         scope: list[Statement] = []
         for statement in ctx.statement():
             scope.extend(self.visit(statement))
-        return ModuleCallStatement("union", children=scope)
+        # The root scope is synthesized, so its span is derived from its
+        # children rather than the EOF token the start rule ends on.
+        return ModuleCallStatement("union", span=self._span_of(scope), children=scope)
 
     # Visit a parse tree produced by OpenSCADParser#statement.
     def visitStatement(self, ctx: OpenSCADParser.StatementContext) -> list[Statement]:
@@ -89,7 +117,7 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
     # Visit a parse tree produced by OpenSCADParser#moduleCall.
     def visitModuleCall(self, ctx: OpenSCADParser.ModuleCallContext) -> ModuleCallStatement:
-        node = ModuleCallStatement(ctx.IDENT().getText())
+        node = ModuleCallStatement(ctx.IDENT().getText(), span=self._span(ctx))
         if ctx.argList() is not None:
             positional, named = self.visit(ctx.argList())
             node.positional_args = positional
@@ -100,7 +128,7 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
     def visitBody(self, ctx: OpenSCADParser.BodyContext) -> ModuleCallStatement:
 
         children = self.visit(ctx.block()) if ctx.block() is not None else [self.visit(ctx.moduleCallSeq())]
-        return ModuleCallStatement("union", children=children)
+        return ModuleCallStatement("union", span=self._span(ctx), children=children)
 
     # Visit a parse tree produced by OpenSCADParser#block.
     def visitBlock(self, ctx: OpenSCADParser.BlockContext) -> list[Statement]:
@@ -115,16 +143,20 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
         # in the let node's body, followed by the visited continuation.
         bindings = self.visit(ctx.letBindingList())
         children: list[Statement] = [
-            VariableBindingStatement(name=assignment.name, value=assignment.value) for assignment in bindings
+            VariableBindingStatement(name=assignment.name, value=assignment.value, span=span)
+            for assignment, span in bindings
         ]
-        return ModuleCallStatement("let", children=children)
+        return ModuleCallStatement("let", span=self._span(ctx), children=children)
 
     # Visit a parse tree produced by OpenSCADParser#letBindingList.
-    def visitLetBindingList(self, ctx: OpenSCADParser.LetBindingListContext) -> list[Assignment]:
+    def visitLetBindingList(
+        self, ctx: OpenSCADParser.LetBindingListContext
+    ) -> list[tuple[Assignment, SourceSpan | None]]:
         bindings = []
         current = ctx
         while current is not None:
-            bindings.append(self.visit(current.letBinding()))
+            assignment = self.visit(current.letBinding())
+            bindings.append((assignment, self._span(current.letBinding())))
             current = current.letBindingList()
         return bindings
 
@@ -140,7 +172,7 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
             for param in self.visit(ctx.paramList()):
                 parameters[param.name] = param
         body = self.visit(ctx.body())
-        return ModuleDefinitionStatement(name=name, parameters=parameters, body=body)
+        return ModuleDefinitionStatement(name=name, parameters=parameters, body=body, span=self._span(ctx))
 
     # Visit a parse tree produced by OpenSCADParser#paramList.
     def visitParamList(self, ctx: OpenSCADParser.ParamListContext) -> list[Assignment]:
@@ -159,6 +191,7 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
         return VariableBindingStatement(
             name=ctx.IDENT().getText(),
             value=self.visit(ctx.expr()),
+            span=self._span(ctx),
         )
 
     # Visit a parse tree produced by OpenSCADParser#argList.
