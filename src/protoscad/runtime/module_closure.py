@@ -34,9 +34,9 @@ class ModuleClosure[Geometry](ModuleDefinition):
         # sees — so a default like `module Foo(b = width * 2)` follows the
         # definition-site `width`, not whatever is in scope at the call.
         values: dict[str, Any] = {
-            name: assignment.value.evaluate(ctx.call_env) for name, assignment in ctx.bindings.explicit.items()
+            name: assignment.value.evaluate(ctx.call_env) for name, assignment in ctx.arg_bindings.explicit.items()
         }
-        for name, assignment in ctx.bindings.defaults.items():
+        for name, assignment in ctx.arg_bindings.defaults.items():
             values[name] = assignment.value.evaluate(self._definition_env)
 
         # Re-wrap the evaluated values as constants so the body resolves

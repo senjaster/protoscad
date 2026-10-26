@@ -15,7 +15,7 @@ class MirrorModule(BuiltinModule):
         child = union_geometries(ctx.evaluate_children())
         if child is None:
             return None
-        return child.mirror(ctx.args["v"])
+        return child.mirror(ctx.arg_values["v"])
 
     @property
     def name(self) -> str:

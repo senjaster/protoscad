@@ -40,7 +40,7 @@ class RecordingModule(BuiltinModule):
         self.calls: list[dict[str, Any]] = []
 
     def instantiate(self, ctx: Invocation) -> Manifold:
-        self.calls.append(dict(ctx.args))
+        self.calls.append(dict(ctx.arg_values))
         return MARKER_GEOMETRY
 
     @property
@@ -58,7 +58,7 @@ class ForLoopModule(BuiltinModule):
 
     def instantiate(self, ctx: Invocation) -> list[Manifold]:
         results = []
-        for value in ctx.args["values"]:
+        for value in ctx.arg_values["values"]:
             env = ctx.child_env.extend_variables({"i": Assignment("i", NumberLiteral(value))})
             for statement in ctx.children:
                 results.append(ctx.evaluate(statement, env))
@@ -197,7 +197,7 @@ def test_call_argument_sees_final_value_of_redefined_variable():
             self.sizes: list[Any] = []
 
         def instantiate(self, ctx: Invocation) -> Manifold:
-            self.sizes.append(ctx.args["size"])
+            self.sizes.append(ctx.arg_values["size"])
             return MARKER_GEOMETRY
 
         @property

@@ -15,7 +15,7 @@ class TranslateModule(BuiltinModule):
         child = union_geometries(ctx.evaluate_children())
         if child is None:
             return None
-        return child.translate(ctx.args["v"])
+        return child.translate(ctx.arg_values["v"])
 
     @property
     def name(self) -> str:

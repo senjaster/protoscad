@@ -15,7 +15,7 @@ Geometry = TypeVar("Geometry")
 
 
 @dataclass(frozen=True)
-class ParameterBindings:
+class ArgBindings:
     """Bound module parameters, unevaluated, split by the scope in which
     each expression must resolve.
 
@@ -64,9 +64,9 @@ class ModuleDefinition[Geometry](ABC):
     def parameters(self) -> Mapping[str, Assignment]:
         raise NotImplementedError
 
-    def bind_parameters(
+    def bind_args(
         self, positional_args: list[Expression], named_args: dict[str, Expression]
-    ) -> ParameterBindings:
+    ) -> ArgBindings:
         """Bind the given arguments to the parameters of this module.
 
         ``$``-prefixed named arguments must be diverted to the special-
@@ -99,7 +99,7 @@ class ModuleDefinition[Geometry](ABC):
 
         # Any parameter not bound above keeps its default value.
         defaults = {name: assignment for name, assignment in parameters.items() if name not in explicit}
-        return ParameterBindings(explicit=explicit, defaults=defaults)
+        return ArgBindings(explicit=explicit, defaults=defaults)
 
 
 class BuiltinModule[Geometry](ModuleDefinition, ABC):

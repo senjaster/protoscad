@@ -15,7 +15,7 @@ class RotateModule(BuiltinModule):
         child = union_geometries(ctx.evaluate_children())
         if child is None:
             return None
-        return child.rotate(ctx.args["v"])
+        return child.rotate(ctx.arg_values["v"])
 
     @property
     def name(self) -> str:

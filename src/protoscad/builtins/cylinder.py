@@ -11,10 +11,10 @@ from protoscad.tree.expression import Assignment, Literal, NumberLiteral
 
 class CylinderModule(BuiltinModule):
     def instantiate(self, ctx: Invocation) -> Manifold:
-        height = ctx.args["h"]
+        height = ctx.arg_values["h"]
         radius_low = self._resolve_radius(ctx, "r1", "d1", "r", "d")
         radius_high = self._resolve_radius(ctx, "r2", "d2", "r", "d")
-        center = bool(ctx.args["center"])
+        center = bool(ctx.arg_values["center"])
         return Manifold.cylinder(height, radius_low, radius_high, 0, center)
 
     @staticmethod
@@ -22,7 +22,7 @@ class CylinderModule(BuiltinModule):
         """Resolve a cylinder radius from the radius/diameter parameters,
         preferring the specific ``rN``/``dN`` over the common ``r``/``d``."""
         for name in (r_name, d_name, r_common, d_common):
-            value = ctx.args[name]
+            value = ctx.arg_values[name]
             if value is None:
                 continue
             if name.startswith("d"):

@@ -11,8 +11,8 @@ from protoscad.tree.expression import Assignment, Literal, NumberLiteral
 
 class SphereModule(BuiltinModule):
     def instantiate(self, ctx: Invocation) -> Manifold:
-        diameter = ctx.args["d"]
-        radius = ctx.args["r"]
+        diameter = ctx.arg_values["d"]
+        radius = ctx.arg_values["r"]
         if diameter is not None:
             radius = diameter / 2
         return Manifold.sphere(radius)

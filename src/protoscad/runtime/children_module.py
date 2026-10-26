@@ -11,11 +11,13 @@ if TYPE_CHECKING:
 
 class ChildrenModule(BuiltinModule):
     def __init__(self, children: Sequence[ModuleCallStatement]):
+        """This is a special pseudo-module that implements
+        children(i) syntax for accessing children of user-defined module."""
         BuiltinModule.__init__(self)
         self._children = children
 
     def instantiate(self, ctx: Invocation) -> Geometry | list[Geometry] | None:
-        i = ctx.args["i"]
+        i = ctx.arg_values["i"]
         # The index arrives as a float (NumberLiteral evaluates to float);
         # accept any whole-number value.
         if isinstance(i, float) and i.is_integer():

@@ -14,7 +14,7 @@ from protoscad.tree.statement import (
 )
 
 if TYPE_CHECKING:
-    from protoscad.runtime.module_definition import ModuleDefinition, ParameterBindings
+    from protoscad.runtime.module_definition import ModuleDefinition, ArgBindings
 
 
 @dataclass
@@ -24,7 +24,7 @@ class Invocation:
     ``node`` is the call statement, ``env`` the scope it appears in;
     everything else about the invocation derives from that pair on demand:
     the resolved ``module``, the ``$``-argument overlay (``call_env``),
-    parameter ``bindings``, and the subtree (``children`` statements plus
+    the ``arg_bindings``, and the subtree (``children`` statements plus
     the ``child_env`` scope they evaluate in).
 
     Modules are instantiated with a context and decide themselves whether
@@ -41,13 +41,13 @@ class Invocation:
     @classmethod
     def evaluate(cls, node: ModuleCallStatement, env: Environment) -> Any:
         """Evaluate one call statement in the given scope."""
-        return cls(node, env).instantiate()
+        return cls(node, env)._instantiate()
 
-    def instantiate(self) -> Any:
+    def _instantiate(self) -> Any:
         # Bindings are touched eagerly so argument errors (unknown
         # parameter, arity) surface on every call, even if the module
         # never reads them.
-        _ = self.bindings
+        _ = self.arg_bindings
         return self.module.instantiate(self)
 
     @cached_property
@@ -73,11 +73,11 @@ class Invocation:
         return self.env.extend_variables(special_args)
 
     @cached_property
-    def bindings(self) -> ParameterBindings:
-        # `$`-arguments are not parameters; see ModuleDefinition.bind_parameters
+    def arg_bindings(self) -> ArgBindings:
+        # `$`-arguments are not parameters; see ModuleDefinition.bind_args
         # for how the remaining arguments bind.
         regular_args = {name: expr for name, expr in self.node.named_args.items() if not name.startswith("$")}
-        return self.module.bind_parameters(self.node.positional_args, regular_args)
+        return self.module.bind_args(self.node.positional_args, regular_args)
 
     @cached_property
     def children(self) -> tuple[ModuleCallStatement, ...]:
@@ -100,11 +100,7 @@ class Invocation:
         """
         bindings = [s for s in self.node.children if isinstance(s, VariableBindingStatement)]
         variables = self.call_env.resolver.resolve(self.call_env, bindings)
-        return self.child_scope(variables)
 
-    def child_scope(self, variables: dict[str, Assignment]) -> Environment:
-        """The child scope carrying the given (already resolved) variables
-        plus this scope's module definitions."""
         definitions: list[ModuleDefinitionStatement] = []
 
         for statement in self.node.children:
@@ -120,17 +116,17 @@ class Invocation:
         return scope_env
 
     @cached_property
-    def args(self) -> dict[str, Any]:
+    def arg_values(self) -> dict[str, Any]:
         """All bound parameters evaluated in the calling scope.
 
         Convenient for builtins, whose defaults are constants and therefore
         scope-independent. Modules with definition-scoped semantics (user
-        modules) must resolve ``bindings`` themselves instead.
+        modules) must resolve ``arg_bindings`` themselves instead.
         """
         merged: dict[str, Any] = {}
-        for name, assignment in self.bindings.explicit.items():
+        for name, assignment in self.arg_bindings.explicit.items():
             merged[name] = assignment.value.evaluate(self.call_env)
-        for name, assignment in self.bindings.defaults.items():
+        for name, assignment in self.arg_bindings.defaults.items():
             merged[name] = assignment.value.evaluate(self.call_env)
         return merged
 
