@@ -1,4 +1,5 @@
 import click
+import numpy as np
 import trimesh
 from antlr4 import CommonTokenStream, InputStream
 
@@ -18,7 +19,6 @@ def parse_scad(source: str) -> ModuleCallStatement:
     return AstOpenSCADVisitor().visit(tree)
 
 
-# Helper to convert a Manifold into a Trimesh
 def manifold2trimesh(manifold):
     mesh = manifold.to_mesh()
 
@@ -34,16 +34,25 @@ def manifold2trimesh(manifold):
 
 @click.command()
 @click.argument("filename", type=click.Path(exists=True))
-def render(filename: str):
-    print(filename)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False),
+    help="Save the result as an STL file instead of showing it on screen.",
+)
+def render(filename: str, output: str | None) -> None:
+    """Render an OpenSCAD file, showing it on screen or saving it as STL."""
     with open(filename) as f:
         content = f.read()
     ast = parse_scad(content)
     modules = (c() for c in BUILTIN_MODULES)
     manifold = evaluate(ast, modules)
     mesh = manifold2trimesh(manifold)
-    mesh.show()
-    # trimesh.exchange.export.export_mesh(mesh, "cube2.stl", "stl")
+
+    if output is not None:
+        trimesh.exchange.export.export_mesh(mesh, output, "stl")
+    else:
+        mesh.show()
 
 
 if __name__ == "__main__":

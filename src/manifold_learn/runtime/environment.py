@@ -48,7 +48,7 @@ class Environment:
         self._is_module_scope = is_module_scope
         self._resolver = resolver if resolver is not None else DeclarativeResolver()
         self._values: dict[str, Any] = {}
-        self._forcing: list[str] = []
+        self._forcing_stack: list[str] = []  # Variable evaluation stack
 
     @classmethod
     def for_module_body(
@@ -57,8 +57,12 @@ class Environment:
         lexical_parent: Environment,
         dynamic_parent: Environment,
     ) -> Environment:
-        """The scope of a module body: variables resolve lexically at the
-        definition site, ``$`` variables dynamically at the call site."""
+        """
+        Create a module body scope:
+
+        Lexical parent is where the module was defined.
+        Dynamic parent is where the module was called.
+        """
         return cls(
             variables=variables,
             parent=lexical_parent,
@@ -68,15 +72,15 @@ class Environment:
         )
 
     def extend_variables(self, variables: dict[str, Assignment] | None = None) -> Environment:
-        """A nested scope: its names shadow the parent's; the dynamic chain
-        is inherited unchanged (nesting does not cross a module boundary)."""
+        """
+        Creates a new nested scope with additional variables defined
+        """
         return Environment(
             variables=variables, parent=self, dynamic_parent=self._dynamic_parent, resolver=self._resolver
         )
 
     def extend_modules(self, modules: Mapping[str, ModuleDefinition] | None = None) -> Environment:
-        """A nested scope: its names shadow the parent's; the dynamic chain
-        is inherited unchanged (nesting does not cross a module boundary)."""
+        """Creates a new nested scope with additional modules defined"""
         return Environment(modules=modules, parent=self, dynamic_parent=self._dynamic_parent, resolver=self._resolver)
 
     @property
@@ -85,64 +89,68 @@ class Environment:
         return self._resolver
 
     def lookup_variable(self, name: str) -> Any:
-        owner = self._scope_defining(name)
-        return owner._binding_value(name) if owner is not None else None
+        """Return a variable's value, forcing it if necessary."""
+        return self._resolve(name, start=self)
 
     def resolves(self, name: str) -> bool:
         """Whether ``name`` is bound somewhere along the lookup chains —
         a membership check that forces no values."""
-        return self._scope_defining(name) is not None
+        return self._find_defining_scope(name) is not None
 
-    def _scope_defining(self, name: str) -> Environment | None:
-        """The scope along the lookup chain that binds ``name``, or None.
-
-        Follows the lexical chain, switching to the dynamic chain for
-        ``$``-prefixed names at module boundaries (see the class
-        docstring). The single place that knows how to walk the chain;
-        both value lookup and the forcing-stack resumption go through it.
-        """
+    def _find_defining_scope(self, name: str) -> Environment | None:
+        """Pure membership walk — no forcing, no side effects."""
         env: Environment | None = self
         while env is not None:
             if name in env._variables:
                 return env
-            use_dynamic_env = name.startswith("$") and env._is_module_scope
-            env = env._dynamic_parent if use_dynamic_env else env._parent
+            env = env._next_scope(name)
         return None
 
-    def _binding_value(self, name: str) -> Any:
-        """The binding's value, forced on first use and memoized
-        (call-by-need).
+    def _next_scope(self, name: str) -> Environment | None:
+        """The scope the chain-walk moves to next when looking for ``name``:
+        the dynamic parent for a ``$name`` crossing a module boundary,
+        the lexical parent otherwise."""
+        use_dynamic = name.startswith("$") and self._is_module_scope
+        return self._dynamic_parent if use_dynamic else self._parent
 
-        The forcing stack implements the scope's letrec rules. Reading the
-        binding currently being forced (the innermost stack frame) falls
-        through to the enclosing scopes — the ``width = width/2`` shadowing
-        idiom. Reading an *outer* frame would have to force it again: an
-        unguarded cycle, which raises with its path. A guard that stops the
-        descent (e.g. an untaken conditional branch) never reaches this
-        case, which is what makes guarded recursion legal.
+    def _resolve(self, name: str, start: Environment | None) -> Any:
+        """Walk the chain for ``name`` starting at ``start`` and force the
+        binding where it's found."""
+        env = start
+        while env is not None:
+            if name in env._variables:
+                return env._force(name)
+            env = env._next_scope(name)
+        return None
+
+    def _force(self, name: str) -> Any:
+        """Compute (once) the value bound to ``name`` in *this* scope.
+        Letrec-with-shadowing: re-entering the binding currently on top of
+        the forcing stack resumes the walk one scope further along the
+        chain (the ``width = width/2`` idiom); re-entering an outer,
+        still-forcing binding is an unguarded cycle.
         """
         if name in self._values:
+            # Already computed
             return self._values[name]
-        if name in self._forcing:
-            if self._forcing[-1] == name:
-                continuation = self._continuation(name)
-                return continuation.lookup_variable(name) if continuation is not None else None
-            start = self._forcing.index(name)
-            raise ValueError("Circular variable dependency: " + " -> ".join([*self._forcing[start:], name]))
-        self._forcing.append(name)
+
+        if name in self._forcing_stack:
+            # There might be a circular variable dependency
+            if self._forcing_stack[-1] == name:
+                # False positive - resolve the same name in the parent scope
+                return self._resolve(name, start=self._next_scope(name))
+            # A real circular dependency. Find where it begins:
+            start = self._forcing_stack.index(name)
+            raise ValueError("Circular variable dependency: " + " -> ".join([*self._forcing_stack[start:], name]))
+
+        # Not forced yet - force it now
+        self._forcing_stack.append(name)
         try:
             value = self._variables[name].value.evaluate(self)
         finally:
-            self._forcing.pop()
+            self._forcing_stack.pop()
         self._values[name] = value
         return value
-
-    def _continuation(self, name: str) -> Environment | None:
-        """Where a self-reference continues: past this scope, along the
-        chain a lookup of ``name`` would have taken."""
-        if name.startswith("$") and self._is_module_scope:
-            return self._dynamic_parent
-        return self._parent
 
     def lookup_module(self, name: str) -> ModuleDefinition | None:
         env: Environment | None = self

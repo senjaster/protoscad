@@ -1,2 +1,5 @@
+from manifold_learn.render import render
+
+
 def main() -> None:
-    print("Hello from manifold-learn!")
+    render()
