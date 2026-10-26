@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, TypeVar
 from protoscad.tree.expression import Assignment, Undefined
 
 if TYPE_CHECKING:
-    from protoscad.runtime.invocation import EvalContext
+    from protoscad.runtime.invocation import Invocation
     from protoscad.tree.expression import Expression
 
 Geometry = TypeVar("Geometry")
@@ -49,7 +49,7 @@ class ModuleDefinition[Geometry](ABC):
     """
 
     @abstractmethod
-    def instantiate(self, ctx: EvalContext) -> Geometry | list[Geometry] | None:
+    def instantiate(self, ctx: Invocation) -> Geometry | list[Geometry] | None:
         """Instantiate this module. May return a single geometry, several
         (e.g. a loop unrolling its body), or none."""
         raise NotImplementedError
@@ -64,9 +64,7 @@ class ModuleDefinition[Geometry](ABC):
     def parameters(self) -> Mapping[str, Assignment]:
         raise NotImplementedError
 
-    def bind_args(
-        self, positional_args: list[Expression], named_args: dict[str, Expression]
-    ) -> ArgBindings:
+    def bind_args(self, positional_args: list[Expression], named_args: dict[str, Expression]) -> ArgBindings:
         """Bind the given arguments to the parameters of this module.
 
         ``$``-prefixed named arguments must be diverted to the special-

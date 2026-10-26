@@ -21,6 +21,7 @@ class BuiltinModuleFactory(Protocol):
 
     def __call__(self) -> BuiltinModule: ...
 
+
 __all__ = [
     "CubeModule",
     "CylinderModule",

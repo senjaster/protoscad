@@ -12,7 +12,7 @@ from protoscad.tree.statement import ModuleCallStatement, ModuleDefinitionStatem
 if TYPE_CHECKING:
     # Annotation-only: invocation imports ModuleClosure at runtime, so a
     # runtime import here would be a cycle.
-    from protoscad.runtime.invocation import EvalContext
+    from protoscad.runtime.invocation import Invocation
 
 
 class ModuleClosure[Geometry](ModuleDefinition):
@@ -28,7 +28,7 @@ class ModuleClosure[Geometry](ModuleDefinition):
         self._body = body
         self._definition_env = env
 
-    def instantiate(self, ctx: EvalContext) -> Geometry | list[Geometry] | None:
+    def instantiate(self, ctx: Invocation) -> Geometry | list[Geometry] | None:
         # Explicit arguments resolve in the caller's scope; defaults resolve
         # where the module was defined — the same lexical scope the body
         # sees — so a default like `module Foo(b = width * 2)` follows the

@@ -14,7 +14,7 @@ from protoscad.tree.statement import (
 )
 
 if TYPE_CHECKING:
-    from protoscad.runtime.module_definition import ModuleDefinition, ArgBindings
+    from protoscad.runtime.module_definition import ArgBindings, ModuleDefinition
 
 
 @dataclass
