@@ -1,10 +1,10 @@
 [project]
-name = "manifold-learn"
+name = "ProtoSCAD"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
-    { name = "ars.biryukov", email = "ars.biryukov@tbank.ru" }
+    { name = "Arseny Biryukov", email = "senjaster@gmail.com" }
 ]
 requires-python = ">=3.14"
 dependencies = [
@@ -16,8 +16,8 @@ dependencies = [
 ]
 
 [project.scripts]
-manifold-learn = "manifold_learn:main"
-protoscad = "manifold_learn:main"
+manifold-learn = "protoscad:main"
+protoscad = "protoscad:main"
 
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14.0"]
@@ -35,7 +35,7 @@ dev = [
 [tool.ruff]
 line-length = 120
 src = ["src", "tests"]
-exclude = ["src/manifold_learn/grammar/*.py"]
+exclude = ["src/protoscad/grammar/*.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4"]
@@ -47,7 +47,7 @@ indent-style = "space"
 [tool.mypy]
 python_version = "3.14"
 files = ["src", "tests"]
-exclude = ["src/manifold_learn/grammar/"]
+exclude = ["src/protoscad/grammar/"]
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
@@ -59,8 +59,8 @@ module = ["manifold3d", "antlr4", "antlr4.*"]
 ignore_missing_imports = true
 
 [tool.coverage.run]
-omit = ["src/manifold_learn/grammar/*"]
+omit = ["src/protoscad/grammar/*"]
 
 [tool.pytest.ini_options]
-addopts = "--cov=manifold_learn --cov-report=term-missing"
+addopts = "--cov=protoscad --cov-report=term-missing"
 testpaths = ["tests"]

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from manifold_learn.runtime.environment import Environment
-from manifold_learn.tree.expression import Assignment, BinaryOp, Expression, NumberLiteral, Variable
+from protoscad.runtime.environment import Environment
+from protoscad.tree.expression import Assignment, BinaryOp, Expression, NumberLiteral, Variable
 
 
 def make_env(**variables: float) -> Environment:

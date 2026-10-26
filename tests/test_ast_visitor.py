@@ -3,9 +3,9 @@ from __future__ import annotations
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
-from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
-from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
-from manifold_learn.tree.expression import (
+from protoscad.grammar.OpenSCADLexer import OpenSCADLexer
+from protoscad.grammar.OpenSCADParser import OpenSCADParser
+from protoscad.tree.expression import (
     ArrayLiteral,
     Assignment,
     BinaryOp,
@@ -15,12 +15,12 @@ from manifold_learn.tree.expression import (
     Undefined,
     Variable,
 )
-from manifold_learn.tree.statement import (
+from protoscad.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
     VariableBindingStatement,
 )
-from manifold_learn.tree.visitor import AstOpenSCADVisitor
+from protoscad.tree.visitor import AstOpenSCADVisitor
 
 
 def parse_scad(source: str) -> ModuleCallStatement:

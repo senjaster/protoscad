@@ -7,18 +7,18 @@ import pytest
 from antlr4 import CommonTokenStream, InputStream
 from manifold3d import Manifold
 
-from manifold_learn.builtins.cube import CubeModule
-from manifold_learn.builtins.sphere import SphereModule
-from manifold_learn.builtins.translate import TranslateModule
-from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
-from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
-from manifold_learn.runtime.evaluator import evaluate
-from manifold_learn.runtime.invocation import Invocation
-from manifold_learn.runtime.module_definition import BuiltinModule
-from manifold_learn.runtime.resolver import OpenScadResolver
-from manifold_learn.tree.expression import Assignment, NumberLiteral
-from manifold_learn.tree.statement import ModuleCallStatement
-from manifold_learn.tree.visitor import AstOpenSCADVisitor
+from protoscad.builtins.cube import CubeModule
+from protoscad.builtins.sphere import SphereModule
+from protoscad.builtins.translate import TranslateModule
+from protoscad.grammar.OpenSCADLexer import OpenSCADLexer
+from protoscad.grammar.OpenSCADParser import OpenSCADParser
+from protoscad.runtime.evaluator import evaluate
+from protoscad.runtime.invocation import Invocation
+from protoscad.runtime.module_definition import BuiltinModule
+from protoscad.runtime.resolver import OpenScadResolver
+from protoscad.tree.expression import Assignment, NumberLiteral
+from protoscad.tree.statement import ModuleCallStatement
+from protoscad.tree.visitor import AstOpenSCADVisitor
 
 MARKER_GEOMETRY = Manifold.cube([1.0, 1.0, 1.0])
 

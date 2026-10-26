@@ -3,14 +3,14 @@ from __future__ import annotations
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
-from manifold_learn.grammar.OpenSCADLexer import OpenSCADLexer
-from manifold_learn.grammar.OpenSCADParser import OpenSCADParser
-from manifold_learn.tree.expression import ArrayLiteral, BinaryOp, Literal, NumberLiteral, Variable
-from manifold_learn.tree.statement import (
+from protoscad.grammar.OpenSCADLexer import OpenSCADLexer
+from protoscad.grammar.OpenSCADParser import OpenSCADParser
+from protoscad.tree.expression import ArrayLiteral, BinaryOp, Literal, NumberLiteral, Variable
+from protoscad.tree.statement import (
     ModuleCallStatement,
     VariableBindingStatement,
 )
-from manifold_learn.tree.visitor import AstOpenSCADVisitor
+from protoscad.tree.visitor import AstOpenSCADVisitor
 
 # A rich, nested, multi-statement OpenSCAD program exercising chained module
 # calls, blocks, let bindings, array literals, variable redefinition and

@@ -5,8 +5,8 @@ from typing import Any
 
 import pytest
 
-from manifold_learn.runtime.environment import Environment
-from manifold_learn.tree.expression import (
+from protoscad.runtime.environment import Environment
+from protoscad.tree.expression import (
     ArrayLiteral,
     Assignment,
     BinaryOp,

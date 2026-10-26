@@ -5,10 +5,10 @@ from typing import Any
 
 import pytest
 
-from manifold_learn.runtime.environment import Environment
-from manifold_learn.runtime.resolver import DeclarativeResolver, OpenScadResolver
-from manifold_learn.tree.expression import BinaryOp, Expression, NumberLiteral, Variable
-from manifold_learn.tree.statement import VariableBindingStatement
+from protoscad.runtime.environment import Environment
+from protoscad.runtime.resolver import DeclarativeResolver, OpenScadResolver
+from protoscad.tree.expression import BinaryOp, Expression, NumberLiteral, Variable
+from protoscad.tree.statement import VariableBindingStatement
 
 
 @dataclass
