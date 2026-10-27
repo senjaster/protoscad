@@ -43,12 +43,11 @@ class ModuleClosure[Geometry](ModuleDefinition):
         # parameters without re-running caller-scoped expressions.
         parameters = {name: Assignment(name, Literal(value)) for name, value in values.items()}
         modules = {"children": ChildrenModule(ctx.children)}
-        body_env = Environment(
+        body_env = Environment.for_module_body(
             variables=parameters,
             modules=modules,
-            parent=self._definition_env,
+            lexical_parent=self._definition_env,
             dynamic_parent=ctx.child_env,
-            is_module_scope=True,
         )
         return ctx.evaluate(self._body, body_env)
 

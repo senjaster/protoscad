@@ -22,9 +22,10 @@ class Environment:
       through the dynamic chain (``dynamic_parent``): the scope where the
       current module was *instantiated*.
 
-    Ordinary scopes extend both chains together (``extend``); only module
-    bodies (``for_module_body``) split them, binding the lexical chain to the
-    definition site and the dynamic chain to the call site.
+    Only module bodies (``for_module_body``) carry a dynamic parent — its
+    presence is what marks the boundary; ordinary scopes leave it ``None``
+    and every name follows the lexical chain until the walk reaches a
+    module body scope.
 
     Variable bindings are letrec-shaped and lazy: a definition is forced on
     first read and memoized (``_binding_value``). All names bound in a scope
@@ -39,14 +40,12 @@ class Environment:
         modules: Mapping[str, ModuleDefinition] | None = None,
         parent: Environment | None = None,
         dynamic_parent: Environment | None = None,
-        is_module_scope: bool = False,
         resolver: BindingResolver | None = None,
     ):
         self._variables = variables if variables is not None else {}
         self._modules = modules if modules is not None else {}
         self._parent = parent
         self._dynamic_parent = dynamic_parent
-        self._is_module_scope = is_module_scope
         self._resolver = resolver if resolver is not None else DeclarativeResolver()
         self._values: dict[str, Any] = {}
         self._forcing_stack: list[str] = []  # Variable evaluation stack
@@ -54,9 +53,10 @@ class Environment:
     @classmethod
     def for_module_body(
         cls,
-        variables: dict[str, Assignment],
+        variables: Mapping[str, Assignment],
         lexical_parent: Environment,
         dynamic_parent: Environment,
+        modules: Mapping[str, ModuleDefinition] | None = None,
     ) -> Environment:
         """
         Create a module body scope:
@@ -66,9 +66,9 @@ class Environment:
         """
         return cls(
             variables=variables,
+            modules=modules,
             parent=lexical_parent,
             dynamic_parent=dynamic_parent,
-            is_module_scope=True,
             resolver=lexical_parent._resolver,
         )
 
@@ -76,13 +76,11 @@ class Environment:
         """
         Creates a new nested scope with additional variables defined
         """
-        return Environment(
-            variables=variables, parent=self, dynamic_parent=self._dynamic_parent, resolver=self._resolver
-        )
+        return Environment(variables=variables, parent=self, resolver=self._resolver)
 
     def extend_modules(self, modules: Mapping[str, ModuleDefinition] | None = None) -> Environment:
         """Creates a new nested scope with additional modules defined"""
-        return Environment(modules=modules, parent=self, dynamic_parent=self._dynamic_parent, resolver=self._resolver)
+        return Environment(modules=modules, parent=self, resolver=self._resolver)
 
     @property
     def resolver(self) -> BindingResolver:
@@ -109,10 +107,11 @@ class Environment:
 
     def _next_scope(self, name: str) -> Environment | None:
         """The scope the chain-walk moves to next when looking for ``name``:
-        the dynamic parent for a ``$name`` crossing a module boundary,
-        the lexical parent otherwise."""
-        use_dynamic = name.startswith("$") and self._is_module_scope
-        return self._dynamic_parent if use_dynamic else self._parent
+        the dynamic parent for a ``$name`` crossing a module boundary (only
+        module body scopes carry one), the lexical parent otherwise."""
+        if name.startswith("$") and self._dynamic_parent is not None:
+            return self._dynamic_parent
+        return self._parent
 
     def _resolve(self, name: str, start: Environment | None) -> Any:
         """Walk the chain for ``name`` starting at ``start`` and force the
