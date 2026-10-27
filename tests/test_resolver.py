@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from protoscad.diagnostics import ProtoSCADError
 from protoscad.runtime.environment import Environment
 from protoscad.runtime.resolver import DeclarativeResolver, OpenScadResolver
 from protoscad.tree.expression import BinaryOp, Expression, NumberLiteral, Variable
@@ -81,13 +82,13 @@ def test_self_reference_reads_parent():
 
 
 def test_unknown_name_rejected_at_setup_even_if_unused():
-    with pytest.raises(ValueError, match="Unknown variable 'zz'"):
+    with pytest.raises(ProtoSCADError, match="Unknown variable 'zz'"):
         make_scope(Environment(), ("q", Variable("zz")))
 
 
 def test_unguarded_cycle_raises_with_forcing_path():
     scope = make_scope(Environment(), ("x", Variable("y")), ("y", Variable("x")))
-    with pytest.raises(ValueError, match="Circular variable dependency: x -> y -> x"):
+    with pytest.raises(ProtoSCADError, match="Circular variable dependency: x -> y -> x"):
         scope.lookup_variable("x")
 
 
@@ -127,7 +128,7 @@ def test_guard_on_taken_branch_still_cycles():
         ("x", Branch(Variable("flag"), Variable("y"), NumberLiteral(10))),
         ("y", Branch(Variable("flag"), Variable("x"), NumberLiteral(0))),
     )
-    with pytest.raises(ValueError, match="x -> y -> x"):
+    with pytest.raises(ProtoSCADError, match="x -> y -> x"):
         scope.lookup_variable("x")
 
 
@@ -155,10 +156,10 @@ def test_openscad_resolver_rejects_cycle_statically_declarative_only_on_use():
         VariableBindingStatement(name="y", value=BinaryOp("+", Variable("x"), NumberLiteral(1))),
         VariableBindingStatement(name="x", value=BinaryOp("+", Variable("y"), NumberLiteral(1))),
     ]
-    with pytest.raises(ValueError, match="Circular variable dependency"):
+    with pytest.raises(ProtoSCADError, match="Circular variable dependency"):
         OpenScadResolver().resolve(Environment(), bindings)
     # The declarative policy builds the scope without complaint...
     scope = make_scope(Environment(), ("x", Variable("y")), ("y", Variable("x")))
     # ...and only raises when the cycle is actually forced.
-    with pytest.raises(ValueError, match="Circular variable dependency"):
+    with pytest.raises(ProtoSCADError, match="Circular variable dependency"):
         scope.lookup_variable("x")

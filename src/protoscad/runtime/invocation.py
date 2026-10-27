@@ -4,9 +4,10 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from protoscad.diagnostics import ErrorCode, ProtoSCADError
 from protoscad.runtime.environment import Environment
 from protoscad.runtime.module_closure import ModuleClosure
-from protoscad.tree.expression import Assignment
+from protoscad.tree.expression import Assignment, Undefined
 from protoscad.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
@@ -56,7 +57,9 @@ class Invocation:
         # call itself introduces for its children.
         module = self.env.lookup_module(self.node.module)
         if module is None:
-            raise ValueError(f"Unknown module: {self.node.module!r}")
+            raise ProtoSCADError(
+                f"Unknown module: {self.node.module!r}", code=ErrorCode.UNKNOWN_MODULE, span=self.node.span
+            )
         return module
 
     @cached_property
@@ -75,9 +78,20 @@ class Invocation:
     @cached_property
     def arg_bindings(self) -> ArgBindings:
         # `$`-arguments are not parameters; see ModuleDefinition.bind_args
-        # for how the remaining arguments bind.
+        # for how the remaining arguments bind. A required parameter left
+        # unbound is rejected here rather than at evaluation, so the error
+        # points at the call (the argument that would have supplied it does
+        # not exist, so the argument spans bind_args uses cannot apply).
         regular_args = {name: expr for name, expr in self.node.named_args.items() if not name.startswith("$")}
-        return self.module.bind_args(self.node.positional_args, regular_args)
+        bindings = self.module.bind_args(self.node.positional_args, regular_args)
+        for name, parameter in self.module.parameters.items():
+            if name not in bindings.explicit and isinstance(parameter.value, Undefined):
+                raise ProtoSCADError(
+                    f"Missing required parameter {name!r} for module {self.module.name!r}",
+                    code=ErrorCode.MISSING_REQUIRED_PARAMETER,
+                    span=self.node.span,
+                )
+        return bindings
 
     @cached_property
     def children(self) -> tuple[ModuleCallStatement, ...]:

@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from protoscad.diagnostics import ProtoSCADError
 from protoscad.runtime.environment import Environment
 from protoscad.tree.expression import (
     ArrayLiteral,
@@ -75,7 +76,7 @@ def test_binary_op_nested():
 def test_binary_op_unknown_operator_raises_at_construction():
     # Operators come from the grammar, so an unknown one is a construction
     # bug and fails fast in __post_init__, not at evaluation.
-    with pytest.raises(ValueError, match="Unknown binary operator"):
+    with pytest.raises(ProtoSCADError, match="Unknown binary operator"):
         BinaryOp("^", NumberLiteral(2.0), NumberLiteral(3.0))
 
 

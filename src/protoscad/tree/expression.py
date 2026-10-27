@@ -3,15 +3,27 @@ from __future__ import annotations
 import dataclasses
 import operator
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
+
+from protoscad.diagnostics import ErrorCode, ProtoSCADError
+from protoscad.diagnostics.spans import SourceSpan
 
 if TYPE_CHECKING:
     from protoscad.runtime.environment import Environment
 
 
+@dataclass(kw_only=True)
 class Expression:
-    """Base class for a node in the expression AST."""
+    """Base class for a node in the expression AST.
+
+    ``span`` locates the node's source text for error reporting; the visitor
+    fills it (``compare=False``, so node equality compares shape only).
+    Hand-built or synthesized nodes (constant folding results, evaluated
+    ``Literal`` re-wraps) have ``span=None``.
+    """
+
+    span: SourceSpan | None = field(default=None, compare=False)
 
     def evaluate(self, env: Environment) -> Any:
         raise NotImplementedError
@@ -26,8 +38,8 @@ class Expression:
         (see ``Variable``).
         """
         names: set[str] = set()
-        for field in dataclasses.fields(self):  # type: ignore[arg-type]
-            value = getattr(self, field.name)
+        for entry in dataclasses.fields(self):
+            value = getattr(self, entry.name)
             if isinstance(value, Expression):
                 names |= value.referenced_names()
             elif isinstance(value, list):
@@ -77,7 +89,8 @@ class Assignment:
     """A variable binding: a name plus the expression that defines it.
 
     Plain data — the scoping rules (self-reference exclusion, parent lookup)
-    live in ``Environment``.
+    live in ``Environment``, and the binding's source position rides on the
+    value expression's ``span``.
     """
 
     name: str
@@ -107,7 +120,7 @@ class BinaryOp(Expression):
         try:
             self._fn = OPERATORS[self.op]
         except KeyError:
-            raise ValueError(f"Unknown binary operator: {self.op!r}") from None
+            raise ProtoSCADError(f"Unknown binary operator: {self.op!r}", code=ErrorCode.UNKNOWN_OPERATOR) from None
 
     def evaluate(self, env: Environment) -> Any:
         return self._fn(self.left.evaluate(env), self.right.evaluate(env))
@@ -145,11 +158,14 @@ class Raw(Expression):
 class Undefined(Expression):
     """The value of a module parameter that has no default and was not bound.
 
-    Evaluating it is a runtime error: a required parameter was never supplied.
+    A required parameter left unbound is rejected at bind time (see
+    ``ModuleDefinition.bind_args``) with the call site in the error, so
+    reaching this evaluation is a leaked sentinel — the backstop keeps it a
+    reported failure rather than a crash.
     """
 
     def evaluate(self, env: Environment) -> Any:
-        raise ValueError("Undefined parameter value")
+        raise ProtoSCADError("Undefined parameter value", code=ErrorCode.MISSING_REQUIRED_PARAMETER)
 
 
 def _constant(node: Expression) -> tuple[bool, Any]:
@@ -169,7 +185,8 @@ def fold(node: Expression) -> Expression:
     of (``[6, 10, 10]``, ``$fn/4 + 2``). Arithmetic on two number literals
     stays a ``NumberLiteral``. Folding is best-effort: an operation that
     would fail at run time (``1/0``, ``[1]+2``) is left unfolded, so the
-    error surfaces at evaluation, in context.
+    error surfaces at evaluation, in context. Replacement nodes inherit the
+    original's ``span``.
     """
     if isinstance(node, BinaryOp):
         left, right = fold(node.left), fold(node.right)
@@ -181,19 +198,19 @@ def fold(node: Expression) -> Expression:
             except Exception:
                 # Folding must never fail construction on an unfoldable
                 # operation.
-                return BinaryOp(node.op, left, right)
+                return BinaryOp(node.op, left, right, span=node.span)
             if isinstance(left, NumberLiteral) and isinstance(right, NumberLiteral):
-                return NumberLiteral(value)
-            return Literal(value)
-        return BinaryOp(node.op, left, right)
+                return NumberLiteral(value, span=node.span)
+            return Literal(value, span=node.span)
+        return BinaryOp(node.op, left, right, span=node.span)
     if isinstance(node, Paren):
         inner = fold(node.inner)
         is_constant, _ = _constant(inner)
-        return inner if is_constant else Paren(inner)
+        return inner if is_constant else Paren(inner, span=node.span)
     if isinstance(node, ArrayLiteral):
         elements = [fold(element) for element in node.elements]
         constants = [_constant(element) for element in elements]
         if all(is_constant for is_constant, _ in constants):
-            return Literal([value for _, value in constants])
-        return ArrayLiteral(elements)
+            return Literal([value for _, value in constants], span=node.span)
+        return ArrayLiteral(elements, span=node.span)
     return node

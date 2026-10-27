@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, TypeVar
 
+from protoscad.diagnostics import ErrorCode, ProtoSCADError
 from protoscad.tree.expression import Assignment, Undefined
 
 if TYPE_CHECKING:
@@ -67,9 +68,13 @@ class ModuleDefinition[Geometry](ABC):
     def bind_args(self, positional_args: list[Expression], named_args: dict[str, Expression]) -> ArgBindings:
         """Bind the given arguments to the parameters of this module.
 
+        Binding errors point at the offending argument expression's span.
+
         ``$``-prefixed named arguments must be diverted to the special-
         variable overlay by the caller before binding; they are not
         parameters, so passing one through is an unknown-parameter error.
+        A required parameter left unbound is the caller's (``Invocation``)
+        check, which has the whole call's span.
 
         The arguments are bound in the following order:
         1. Positional arguments
@@ -80,8 +85,12 @@ class ModuleDefinition[Geometry](ABC):
         explicit: dict[str, Assignment] = {}
 
         if len(positional_args) > len(parameters):
-            raise ValueError(
-                f"Module {self.name!r} takes at most {len(parameters)} positional arguments, got {len(positional_args)}"
+            excess = positional_args[len(parameters) :]
+            raise ProtoSCADError(
+                f"Module {self.name!r} takes at most {len(parameters)} positional arguments, "
+                f"got {len(positional_args)}",
+                code=ErrorCode.TOO_MANY_POSITIONAL_ARGS,
+                span=excess[0].span,
             )
         # Positional arguments bind to the formal parameters in declaration order.
         # Fewer positionals than parameters is legal partial binding; the
@@ -92,7 +101,11 @@ class ModuleDefinition[Geometry](ABC):
         # Named arguments bind by name and take precedence over positional.
         for name, arg in named_args.items():
             if name not in parameters:
-                raise ValueError(f"Unknown parameter {name!r} for module {self.name!r}")
+                raise ProtoSCADError(
+                    f"Unknown parameter {name!r} for module {self.name!r}",
+                    code=ErrorCode.UNKNOWN_PARAMETER,
+                    span=arg.span,
+                )
             explicit[name] = Assignment(name, arg)
 
         # Any parameter not bound above keeps its default value.

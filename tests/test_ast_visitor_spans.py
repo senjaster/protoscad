@@ -4,6 +4,7 @@ from antlr4 import CommonTokenStream, InputStream
 
 from protoscad.grammar.OpenSCADLexer import OpenSCADLexer
 from protoscad.grammar.OpenSCADParser import OpenSCADParser
+from protoscad.tree.expression import BinaryOp, NumberLiteral, Variable
 from protoscad.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
@@ -118,3 +119,55 @@ def test_multiline_call_span_spans_lines():
     assert isinstance(cube, ModuleCallStatement)
     assert cube.module == "cube"
     assert span(cube) == SourceSpan(2, 4, 2, 12)
+
+
+def test_variable_and_binary_op_expression_spans():
+    scope = parse_scad(SOURCE)
+    # `let(y=5)` then `sphere(y)`: the argument `y` is a Variable whose span
+    # is the identifier itself.
+    let_node = scope.children[2]
+    assert isinstance(let_node, ModuleCallStatement)
+    sphere = let_node.children[1]
+    assert isinstance(sphere, ModuleCallStatement)
+    argument = sphere.positional_args[0]
+    assert isinstance(argument, Variable)
+    assert argument.span == SourceSpan(6, 11, 6, 12)
+
+
+def test_binary_op_span_and_fold_span_preservation():
+    # `1 + 2 * 3` folds all the way down: the folded `2 * 3` literal keeps
+    # the operand span, which lets the outer sum fold too, and the final
+    # literal keeps the whole expression's span.
+    scope = parse_scad("x = 1 + 2 * 3;\n")
+    binding = scope.children[0]
+    assert isinstance(binding, VariableBindingStatement)
+    value = binding.value
+    assert isinstance(value, NumberLiteral)
+    assert value.value == 7.0
+    assert value.span == SourceSpan(1, 4, 1, 13)
+
+
+def test_binary_op_partial_fold_keeps_operation_and_spans():
+    # A variable operand stops the fold, but the constant sub-expression
+    # still collapses and carries its own span.
+    scope = parse_scad("x = y + 2 * 3;\n")
+    binding = scope.children[0]
+    assert isinstance(binding, VariableBindingStatement)
+    value = binding.value
+    assert isinstance(value, BinaryOp)
+    assert value.span == SourceSpan(1, 4, 1, 13)
+    assert isinstance(value.left, Variable)
+    assert value.left.span == SourceSpan(1, 4, 1, 5)
+    right = value.right
+    assert isinstance(right, NumberLiteral)
+    assert right.value == 6.0
+    assert right.span == SourceSpan(1, 8, 1, 13)
+
+
+def test_named_arg_span_covers_name_and_value():
+    scope = parse_scad("cube(center = true);\n")
+    call = scope.children[0]
+    assert isinstance(call, ModuleCallStatement)
+    center = call.named_args["center"]
+    # The argument's span is the whole `center = true`, not just the value.
+    assert center.span == SourceSpan(1, 5, 1, 18)

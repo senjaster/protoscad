@@ -214,7 +214,11 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
     # Visit a parse tree produced by OpenSCADParser#namedArg.
     def visitNamedArg(self, ctx: OpenSCADParser.NamedArgContext) -> tuple[str, object]:
-        return ctx.IDENT().getText(), self.visit(ctx.expr())
+        expr = self.visit(ctx.expr())
+        # Widen the value's span to the whole `name = expr` argument so
+        # argument errors point at the argument, not just its value.
+        expr.span = self._span(ctx)
+        return ctx.IDENT().getText(), expr
 
     ## =========================================================================
     #  Expressions
@@ -225,32 +229,32 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
 
     # Visit a parse tree produced by OpenSCADParser#IdentExpr.
     def visitIdentExpr(self, ctx: OpenSCADParser.IdentExprContext) -> Variable:
-        return Variable(ctx.IDENT().getText())
+        return Variable(ctx.IDENT().getText(), span=self._span(ctx))
 
     # Visit a parse tree produced by OpenSCADParser#ArrayExpr.
     def visitArrayExpr(self, ctx: OpenSCADParser.ArrayExprContext) -> Expression:
         elements = self.visit(ctx.exprList()) if ctx.exprList() is not None else []
-        return fold(ArrayLiteral(elements))
+        return fold(ArrayLiteral(elements, span=self._span(ctx)))
 
     # Visit a parse tree produced by OpenSCADParser#NumberExpr.
     def visitNumberExpr(self, ctx: OpenSCADParser.NumberExprContext) -> NumberLiteral:
-        return NumberLiteral(float(ctx.NUMBER().getText()))
+        return NumberLiteral(float(ctx.NUMBER().getText()), span=self._span(ctx))
 
     # Visit a parse tree produced by OpenSCADParser#AdditiveExpr.
     def visitAdditiveExpr(self, ctx: OpenSCADParser.AdditiveExprContext) -> Expression:
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return fold(BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right))
+        return fold(BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right, span=self._span(ctx)))
 
     # Visit a parse tree produced by OpenSCADParser#MultiplicativeExpr.
     def visitMultiplicativeExpr(self, ctx: OpenSCADParser.MultiplicativeExprContext) -> Expression:
         left = self.visit(ctx.expr(0))
         right = self.visit(ctx.expr(1))
-        return fold(BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right))
+        return fold(BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right, span=self._span(ctx)))
 
     # Visit a parse tree produced by OpenSCADParser#ParenExpr.
     def visitParenExpr(self, ctx: OpenSCADParser.ParenExprContext) -> Expression:
-        return fold(Paren(self.visit(ctx.expr())))
+        return fold(Paren(self.visit(ctx.expr()), span=self._span(ctx)))
 
     # Visit a parse tree produced by OpenSCADParser#exprList.
     def visitExprList(self, ctx: OpenSCADParser.ExprListContext) -> list:
@@ -262,4 +266,4 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
     # Temporary stand-in for the not-yet-implemented string expression.
     # Captures the raw source text so args/let-bindings are wired up correctly.
     def _expr_stub(self, ctx):
-        return Raw(ctx.getText())
+        return Raw(ctx.getText(), span=self._span(ctx))

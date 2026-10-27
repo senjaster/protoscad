@@ -10,6 +10,7 @@ from manifold3d import Manifold
 from protoscad.builtins.cube import CubeModule
 from protoscad.builtins.sphere import SphereModule
 from protoscad.builtins.translate import TranslateModule
+from protoscad.diagnostics import ProtoSCADError
 from protoscad.grammar.OpenSCADLexer import OpenSCADLexer
 from protoscad.grammar.OpenSCADParser import OpenSCADParser
 from protoscad.runtime.evaluator import evaluate
@@ -156,7 +157,7 @@ def test_declarative_shadowed_binding_never_evaluates():
 def test_declarative_unknown_variable_in_binding_raises():
     # Unknown names in bindings are rejected at scope setup, even when the
     # binding is never used.
-    with pytest.raises(ValueError, match="Unknown variable 'zz'"):
+    with pytest.raises(ProtoSCADError, match="Unknown variable 'zz'"):
         evaluate_with_modules("q = zz;", [RecordingModule("probe")])
 
 
@@ -164,7 +165,7 @@ def test_declarative_cycle_errors_when_used():
     # The final definitions x = y+1 and y = x form a cycle; forcing it
     # raises with the forcing path.
     probe = RecordingModule("probe")
-    with pytest.raises(ValueError, match="Circular variable dependency: x -> y -> x"):
+    with pytest.raises(ProtoSCADError, match="Circular variable dependency: x -> y -> x"):
         evaluate_with_modules("x = 1; y = x; x = y + 1; probe(x);", [probe])
 
 
@@ -229,14 +230,14 @@ def test_openscad_use_before_first_definition_raises():
     # OpenSCAD treats `y = x; x = 10;` as unknown x (warning + undef); we
     # raise the same case as an error instead of passing None around.
     probe = RecordingModule("probe")
-    with pytest.raises(ValueError, match="'x' .* before its first assignment"):
+    with pytest.raises(ProtoSCADError, match="'x' .* before its first assignment"):
         evaluate_with_modules("y = x; x = 10; probe(y);", [probe], OpenScadResolver())
 
 
 def test_openscad_unknown_variable_in_binding_raises():
     # Bindings are evaluated eagerly at scope setup, so even an unused
     # binding with an unknown name fails (OpenSCAD warns; we raise).
-    with pytest.raises(ValueError, match="Unknown variable 'zz'"):
+    with pytest.raises(ProtoSCADError, match="Unknown variable 'zz'"):
         evaluate_with_modules("q = zz;", [RecordingModule("probe")], OpenScadResolver())
 
 
@@ -263,7 +264,7 @@ def test_openscad_later_first_definition_falls_through_to_parent():
 
 def test_openscad_circular_binding_dependency_raises():
     # OpenSCAD degrades `x=1; y=x; x=y+1;` to undef everywhere; we raise.
-    with pytest.raises(ValueError, match="Circular variable dependency"):
+    with pytest.raises(ProtoSCADError, match="Circular variable dependency"):
         evaluate_with_modules("x = 1; y = x; x = y + 1;", [RecordingModule("probe")], OpenScadResolver())
 
 
@@ -326,13 +327,13 @@ def test_multiple_top_level_results_are_unioned():
 
 
 def test_unknown_module_raises():
-    with pytest.raises(ValueError, match="Unknown module: 'sphare'"):
+    with pytest.raises(ProtoSCADError, match="Unknown module: 'sphare'"):
         evaluate_with_modules("sphare(1);", [RecordingModule("probe")])
 
 
 def test_missing_required_parameter_raises():
     probe = RecordingModule("probe")
-    with pytest.raises(ValueError, match="Undefined parameter"):
+    with pytest.raises(ProtoSCADError, match="Missing required parameter"):
         evaluate_with_modules("probe();", [probe])
 
 
@@ -453,7 +454,7 @@ def test_user_module_defined_inside_real_scope_is_scoped_to_it():
         [probe],
     )
     assert probe.calls == [{"value": 1.0}]
-    with pytest.raises(ValueError, match="Unknown module: 'Bar'"):
+    with pytest.raises(ProtoSCADError, match="Unknown module: 'Bar'"):
         evaluate_with_modules(
             "union() { module Bar() { probe(1); } } Bar();",
             [probe],
@@ -491,7 +492,7 @@ def test_user_module_explicit_arg_resolves_in_call_scope():
 
 def test_user_module_missing_required_parameter_raises():
     probe = RecordingModule("probe")
-    with pytest.raises(ValueError, match="Undefined parameter"):
+    with pytest.raises(ProtoSCADError, match="Missing required parameter"):
         evaluate_with_modules("module Foo(a) { probe(a); } Foo();", [probe])
 
 
@@ -568,12 +569,12 @@ def test_module_can_inject_special_variable_into_children():
 
 
 def test_unknown_named_argument_raises():
-    with pytest.raises(ValueError, match="Unknown parameter 'bogus'"):
+    with pytest.raises(ProtoSCADError, match="Unknown parameter 'bogus'"):
         evaluate_with_modules("cube(size = 1, bogus = 2);", [CubeModule()])
 
 
 def test_too_many_positional_arguments_raise():
-    with pytest.raises(ValueError, match="positional"):
+    with pytest.raises(ProtoSCADError, match="positional"):
         evaluate_with_modules("cube(1, 2, 3);", [CubeModule()])
 
 

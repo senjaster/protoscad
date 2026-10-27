@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
+from protoscad.diagnostics import ErrorCode, ProtoSCADError
 from protoscad.runtime.resolver import BindingResolver, DeclarativeResolver
 
 if TYPE_CHECKING:
@@ -141,7 +142,11 @@ class Environment:
                 return self._resolve(name, start=self._next_scope(name))
             # A real circular dependency. Find where it begins:
             start = self._forcing_stack.index(name)
-            raise ValueError("Circular variable dependency: " + " -> ".join([*self._forcing_stack[start:], name]))
+            raise ProtoSCADError(
+                "Circular variable dependency: " + " -> ".join([*self._forcing_stack[start:], name]),
+                code=ErrorCode.CIRCULAR_DEPENDENCY,
+                span=self._variables[name].value.span,
+            )
 
         # Not forced yet - force it now
         self._forcing_stack.append(name)

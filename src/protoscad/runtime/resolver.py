@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
+from protoscad.diagnostics import ErrorCode, ProtoSCADError
+from protoscad.diagnostics.spans import SourceSpan
 from protoscad.tree.expression import Assignment, Expression, Literal
 from protoscad.tree.statement import VariableBindingStatement
 
@@ -48,13 +50,19 @@ class DeclarativeResolver:
 
     def resolve(self, parent: Environment, bindings: list[VariableBindingStatement]) -> dict[str, Assignment]:
         final: dict[str, Assignment] = {}
+        spans: dict[str, SourceSpan | None] = {}
         for binding in bindings:
             final[binding.name] = Assignment(binding.name, binding.value)
+            spans[binding.name] = binding.span
         scope_names = set(final)
         for name, assignment in final.items():
             for ref in assignment.value.referenced_names():
                 if ref not in scope_names and not parent.resolves(ref):
-                    raise ValueError(f"Unknown variable {ref!r} in the definition of {name!r}")
+                    raise ProtoSCADError(
+                        f"Unknown variable {ref!r} in the definition of {name!r}",
+                        code=ErrorCode.UNKNOWN_VARIABLE,
+                        span=spans[name],
+                    )
         return final
 
 
@@ -75,22 +83,24 @@ class OpenScadResolver:
     """
 
     def resolve(self, parent: Environment, bindings: list[VariableBindingStatement]) -> dict[str, Assignment]:
-        final_expr, first_pos, final_pos = self._collect(bindings)
-        deps = self._dependencies(parent, final_expr, first_pos, final_pos)
-        values = self._evaluate(parent, final_expr, deps, self._topological(deps))
+        final_expr, first_pos, final_pos, spans = self._collect(bindings)
+        deps = self._dependencies(parent, final_expr, first_pos, final_pos, spans)
+        values = self._evaluate(parent, final_expr, deps, self._topological(deps, spans))
         return {name: Assignment(name, Literal(value)) for name, value in values.items()}
 
     def _collect(
         self, bindings: list[VariableBindingStatement]
-    ) -> tuple[dict[str, Expression], dict[str, int], dict[str, int]]:
+    ) -> tuple[dict[str, Expression], dict[str, int], dict[str, int], dict[str, SourceSpan | None]]:
         final_expr: dict[str, Expression] = {}
         first_pos: dict[str, int] = {}
         final_pos: dict[str, int] = {}
+        spans: dict[str, SourceSpan | None] = {}
         for pos, statement in enumerate(bindings):
             first_pos.setdefault(statement.name, pos)
             final_pos[statement.name] = pos
             final_expr[statement.name] = statement.value
-        return final_expr, first_pos, final_pos
+            spans[statement.name] = statement.span
+        return final_expr, first_pos, final_pos, spans
 
     def _dependencies(
         self,
@@ -98,6 +108,7 @@ class OpenScadResolver:
         final_expr: dict[str, Expression],
         first_pos: dict[str, int],
         final_pos: dict[str, int],
+        spans: dict[str, SourceSpan | None],
     ) -> dict[str, set[str]]:
         # n reads the final value of every same-scope m that is referenced
         # and whose first definition is at or before n's own (final)
@@ -114,16 +125,22 @@ class OpenScadResolver:
                     if first_pos[ref] <= final_pos[name]:
                         reads.add(ref)
                     elif parent.lookup_variable(ref) is None:
-                        raise ValueError(
+                        raise ProtoSCADError(
                             f"Variable {ref!r} is used in the definition of {name!r} "
-                            "before its first assignment in this scope"
+                            "before its first assignment in this scope",
+                            code=ErrorCode.USE_BEFORE_ASSIGNMENT,
+                            span=spans[name],
                         )
                 elif parent.lookup_variable(ref) is None:
-                    raise ValueError(f"Unknown variable {ref!r} in the definition of {name!r}")
+                    raise ProtoSCADError(
+                        f"Unknown variable {ref!r} in the definition of {name!r}",
+                        code=ErrorCode.UNKNOWN_VARIABLE,
+                        span=spans[name],
+                    )
             deps[name] = reads
         return deps
 
-    def _topological(self, deps: dict[str, set[str]]) -> list[str]:
+    def _topological(self, deps: dict[str, set[str]], spans: dict[str, SourceSpan | None]) -> list[str]:
         # Depth-first topological order; cycles raise.
         order: list[str] = []
         state: dict[str, int] = {}
@@ -131,7 +148,11 @@ class OpenScadResolver:
         def visit(node: str) -> None:
             mark = state.get(node, 0)
             if mark == 1:
-                raise ValueError(f"Circular variable dependency involving {node!r}")
+                raise ProtoSCADError(
+                    f"Circular variable dependency involving {node!r}",
+                    code=ErrorCode.CIRCULAR_DEPENDENCY,
+                    span=spans[node],
+                )
             if mark == 2:
                 return
             state[node] = 1

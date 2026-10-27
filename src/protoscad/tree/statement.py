@@ -3,25 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from protoscad.diagnostics.spans import SourceSpan
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from protoscad.tree.expression import Assignment, Expression
 
-
-@dataclass(frozen=True)
-class SourceSpan:
-    """A half-open region of the source text, in 1-based line / 0-based column.
-
-    ``start`` is the first character of the construct, ``end`` the character
-    just past its last one. A statement's span lets an error message point at
-    the exact source text it came from.
-    """
-
-    start_line: int
-    start_column: int
-    end_line: int
-    end_column: int
+__all__ = [
+    "ModuleCallStatement",
+    "ModuleDefinitionStatement",
+    "SourceSpan",
+    "Statement",
+    "VariableBindingStatement",
+]
 
 
 @dataclass(kw_only=True)
