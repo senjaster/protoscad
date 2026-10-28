@@ -17,6 +17,7 @@ dependencies = [
     "manifold3d>=3.5.4",
     "pyglet<2",
     "trimesh>=5.1.1",
+    "scipy>=1.18.1",
 ]
 
 [project.scripts]
