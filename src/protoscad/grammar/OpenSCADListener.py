@@ -1,4 +1,4 @@
-# Generated from src/protoscad/grammar/OpenSCAD.g4 by ANTLR 4.13.2
+# Generated from C:/Users/arsbir/Documents/protoscad/src/protoscad/grammar/OpenSCAD.g4 by ANTLR 4.13.2
 from antlr4 import *
 if "." in __name__:
     from .OpenSCADParser import OpenSCADParser
@@ -215,21 +215,21 @@ class OpenSCADListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by OpenSCADParser#UndefExpr.
+    def enterUndefExpr(self, ctx:OpenSCADParser.UndefExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#UndefExpr.
+    def exitUndefExpr(self, ctx:OpenSCADParser.UndefExprContext):
+        pass
+
+
     # Enter a parse tree produced by OpenSCADParser#StringExpr.
     def enterStringExpr(self, ctx:OpenSCADParser.StringExprContext):
         pass
 
     # Exit a parse tree produced by OpenSCADParser#StringExpr.
     def exitStringExpr(self, ctx:OpenSCADParser.StringExprContext):
-        pass
-
-
-    # Enter a parse tree produced by OpenSCADParser#MultiplicativeExpr.
-    def enterMultiplicativeExpr(self, ctx:OpenSCADParser.MultiplicativeExprContext):
-        pass
-
-    # Exit a parse tree produced by OpenSCADParser#MultiplicativeExpr.
-    def exitMultiplicativeExpr(self, ctx:OpenSCADParser.MultiplicativeExprContext):
         pass
 
 
@@ -242,12 +242,111 @@ class OpenSCADListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by OpenSCADParser#ArrayExpr.
-    def enterArrayExpr(self, ctx:OpenSCADParser.ArrayExprContext):
+    # Enter a parse tree produced by OpenSCADParser#TrueExpr.
+    def enterTrueExpr(self, ctx:OpenSCADParser.TrueExprContext):
         pass
 
-    # Exit a parse tree produced by OpenSCADParser#ArrayExpr.
-    def exitArrayExpr(self, ctx:OpenSCADParser.ArrayExprContext):
+    # Exit a parse tree produced by OpenSCADParser#TrueExpr.
+    def exitTrueExpr(self, ctx:OpenSCADParser.TrueExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#EmptyVectorExpr.
+    def enterEmptyVectorExpr(self, ctx:OpenSCADParser.EmptyVectorExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#EmptyVectorExpr.
+    def exitEmptyVectorExpr(self, ctx:OpenSCADParser.EmptyVectorExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#RelationalExpr.
+    def enterRelationalExpr(self, ctx:OpenSCADParser.RelationalExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#RelationalExpr.
+    def exitRelationalExpr(self, ctx:OpenSCADParser.RelationalExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#RangeExpr.
+    def enterRangeExpr(self, ctx:OpenSCADParser.RangeExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#RangeExpr.
+    def exitRangeExpr(self, ctx:OpenSCADParser.RangeExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#UnaryExpr.
+    def enterUnaryExpr(self, ctx:OpenSCADParser.UnaryExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#UnaryExpr.
+    def exitUnaryExpr(self, ctx:OpenSCADParser.UnaryExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#LogicalAndExpr.
+    def enterLogicalAndExpr(self, ctx:OpenSCADParser.LogicalAndExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#LogicalAndExpr.
+    def exitLogicalAndExpr(self, ctx:OpenSCADParser.LogicalAndExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#IndexExpr.
+    def enterIndexExpr(self, ctx:OpenSCADParser.IndexExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#IndexExpr.
+    def exitIndexExpr(self, ctx:OpenSCADParser.IndexExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#FalseExpr.
+    def enterFalseExpr(self, ctx:OpenSCADParser.FalseExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#FalseExpr.
+    def exitFalseExpr(self, ctx:OpenSCADParser.FalseExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#MultiplicativeExpr.
+    def enterMultiplicativeExpr(self, ctx:OpenSCADParser.MultiplicativeExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#MultiplicativeExpr.
+    def exitMultiplicativeExpr(self, ctx:OpenSCADParser.MultiplicativeExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#LogicalOrExpr.
+    def enterLogicalOrExpr(self, ctx:OpenSCADParser.LogicalOrExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#LogicalOrExpr.
+    def exitLogicalOrExpr(self, ctx:OpenSCADParser.LogicalOrExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#FunctionCallExpr.
+    def enterFunctionCallExpr(self, ctx:OpenSCADParser.FunctionCallExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#FunctionCallExpr.
+    def exitFunctionCallExpr(self, ctx:OpenSCADParser.FunctionCallExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#EqualityExpr.
+    def enterEqualityExpr(self, ctx:OpenSCADParser.EqualityExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#EqualityExpr.
+    def exitEqualityExpr(self, ctx:OpenSCADParser.EqualityExprContext):
         pass
 
 
@@ -269,12 +368,66 @@ class OpenSCADListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by OpenSCADParser#MemberExpr.
+    def enterMemberExpr(self, ctx:OpenSCADParser.MemberExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#MemberExpr.
+    def exitMemberExpr(self, ctx:OpenSCADParser.MemberExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#ExponentExpr.
+    def enterExponentExpr(self, ctx:OpenSCADParser.ExponentExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#ExponentExpr.
+    def exitExponentExpr(self, ctx:OpenSCADParser.ExponentExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#LetExpression.
+    def enterLetExpression(self, ctx:OpenSCADParser.LetExpressionContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#LetExpression.
+    def exitLetExpression(self, ctx:OpenSCADParser.LetExpressionContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#VectorExpr.
+    def enterVectorExpr(self, ctx:OpenSCADParser.VectorExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#VectorExpr.
+    def exitVectorExpr(self, ctx:OpenSCADParser.VectorExprContext):
+        pass
+
+
     # Enter a parse tree produced by OpenSCADParser#ParenExpr.
     def enterParenExpr(self, ctx:OpenSCADParser.ParenExprContext):
         pass
 
     # Exit a parse tree produced by OpenSCADParser#ParenExpr.
     def exitParenExpr(self, ctx:OpenSCADParser.ParenExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#TernaryExpr.
+    def enterTernaryExpr(self, ctx:OpenSCADParser.TernaryExprContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#TernaryExpr.
+    def exitTernaryExpr(self, ctx:OpenSCADParser.TernaryExprContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#range.
+    def enterRange(self, ctx:OpenSCADParser.RangeContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#range.
+    def exitRange(self, ctx:OpenSCADParser.RangeContext):
         pass
 
 

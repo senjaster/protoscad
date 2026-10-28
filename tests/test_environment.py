@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from protoscad.runtime.environment import Environment
@@ -41,13 +43,13 @@ def test_extend_inherits_variables_and_shadows():
 
 
 def test_lookup_module_local():
-    marker = object()
+    marker: Any = object()
     env = Environment(modules={"cube": marker})
     assert env.lookup_module("cube") is marker
 
 
 def test_lookup_module_falls_back_to_parent():
-    marker = object()
+    marker: Any = object()
     parent = Environment(modules={"cube": marker})
     child = Environment(parent=parent)
     assert child.lookup_module("cube") is marker
@@ -58,8 +60,8 @@ def test_lookup_module_missing_returns_none():
 
 
 def test_lookup_module_shadows_parent():
-    outer_marker = object()
-    inner_marker = object()
+    outer_marker: Any = object()
+    inner_marker: Any = object()
     outer = Environment(modules={"box": outer_marker})
     inner = Environment(modules={"box": inner_marker}, parent=outer)
     assert inner.lookup_module("box") is inner_marker

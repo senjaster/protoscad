@@ -660,7 +660,9 @@ def test_children_bare_block_unwrapped():
         'module my_mod() { children(1); } my_mod() { echo("aaa"); { echo("bbb"); echo("ccc"); } }',
         [echo],
     )
-    assert echo.calls == [{"value": '"bbb"'}]
+    # The string argument now evaluates to its unquoted content (it used to
+    # be the raw source text while strings were a stub).
+    assert echo.calls == [{"value": "bbb"}]
 
 
 def test_children_module_invocation_is_single_child():
@@ -671,4 +673,48 @@ def test_children_module_invocation_is_single_child():
         'module my_mod() { children(1); } my_mod() { echo("aaa"); union() { echo("bbb"); echo("ccc"); } }',
         [echo],
     )
-    assert echo.calls == [{"value": '"bbb"'}, {"value": '"ccc"'}]
+    assert echo.calls == [{"value": "bbb"}, {"value": "ccc"}]
+
+
+## =========================================================================
+#  Expressions end-to-end: constants, builtin functions, ternary, strings
+
+
+def test_builtin_constant_pi_resolves_everywhere():
+    probe = RecordingModule("probe")
+    evaluate_with_modules("probe(2*PI);", [probe])
+    assert probe.calls[0]["value"] == pytest.approx(6.283185307179586)
+
+
+def test_local_assignment_shadows_pi():
+    probe = RecordingModule("probe")
+    evaluate_with_modules("PI = 3; probe(PI);", [probe])
+    assert probe.calls[0]["value"] == 3.0
+
+
+def test_builtin_function_call_in_argument():
+    probe = RecordingModule("probe")
+    evaluate_with_modules("probe(floor(3.7) + max(1, 5));", [probe])
+    assert probe.calls[0]["value"] == 8.0
+
+
+def test_ternary_and_logical_operators_end_to_end():
+    probe = RecordingModule("probe")
+    evaluate_with_modules('x = 4; probe(x > 3 && x < 5 ? "big" : "small");', [probe])
+    assert probe.calls[0]["value"] == "big"
+
+
+def test_index_and_range_in_source():
+    probe = RecordingModule("probe")
+    evaluate_with_modules("v = [10, 20, 30]; probe(v[1]);", [probe])
+    assert probe.calls[0]["value"] == 20.0
+
+
+def test_type_error_carries_span_from_source():
+    probe = RecordingModule("probe")
+    with pytest.raises(ProtoSCADError) as excinfo:
+        evaluate_with_modules('s = "a"; probe(s + 1);', [probe])
+    diagnostic = excinfo.value.diagnostic
+    assert diagnostic.code.value == "type-error"
+    assert diagnostic.span is not None
+    assert diagnostic.span.start_line == 1

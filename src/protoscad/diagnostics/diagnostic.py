@@ -31,6 +31,11 @@ class ErrorCode(StrEnum):
     USE_BEFORE_ASSIGNMENT = "use-before-assignment"
     CIRCULAR_DEPENDENCY = "circular-dependency"
     UNKNOWN_OPERATOR = "unknown-operator"
+    TYPE_ERROR = "type-error"
+    INVALID_INDEX = "invalid-index"
+    INDEX_OUT_OF_RANGE = "index-out-of-range"
+    UNKNOWN_FUNCTION = "unknown-function"
+    INVALID_ARGUMENT = "invalid-argument"
 
 
 @dataclass(frozen=True)

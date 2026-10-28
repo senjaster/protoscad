@@ -1,25 +1,36 @@
 from __future__ import annotations
 
+import pytest
 from antlr4 import CommonTokenStream, InputStream
 from antlr4.error.ErrorListener import ErrorListener
 
+from protoscad.diagnostics import ErrorCode, ProtoSCADError
 from protoscad.grammar.OpenSCADLexer import OpenSCADLexer
 from protoscad.grammar.OpenSCADParser import OpenSCADParser
 from protoscad.tree.expression import (
-    ArrayLiteral,
     Assignment,
     BinaryOp,
+    BooleanLiteral,
+    Call,
+    LetExpr,
     Literal,
     NumberLiteral,
     Paren,
+    StringLiteral,
+    TernaryOp,
+    UnaryOp,
     Undefined,
+    UndefLiteral,
     Variable,
+    VectorLiteral,
 )
 from protoscad.tree.statement import (
     ModuleCallStatement,
     ModuleDefinitionStatement,
+    Statement,
     VariableBindingStatement,
 )
+from protoscad.tree.values import RangeValue
 from protoscad.tree.visitor import AstOpenSCADVisitor
 
 
@@ -58,6 +69,12 @@ def single_call(scope: ModuleCallStatement) -> ModuleCallStatement:
     return scope.children[0]
 
 
+def call_names(children: list[Statement]) -> list[str]:
+    """Module names of the calls among the statements — narrowing so the
+    type checker sees ``ModuleCallStatement`` through the ``Statement`` list."""
+    return [s.module for s in children if isinstance(s, ModuleCallStatement)]
+
+
 ## =========================================================================
 #  Basic module calls
 
@@ -89,7 +106,7 @@ def test_mixed_positional_and_named_args():
     scope = parse_scad("cube([10,10,10], center=true);")
     node = single_call(scope)
     assert node.positional_args == [Literal([10.0, 10.0, 10.0])]
-    assert node.named_args == {"center": Variable("true")}
+    assert node.named_args == {"center": BooleanLiteral(True)}
 
 
 def test_chained_module_calls_nest():
@@ -113,12 +130,12 @@ def test_chained_module_calls_nest():
 def test_bare_block_splices_into_scope():
     scope = parse_scad("{ cube(1); sphere(2); }")
     # The bare block contributes its calls directly to the enclosing scope.
-    assert [s.module for s in scope.children] == ["cube", "sphere"]
+    assert call_names(scope.children) == ["cube", "sphere"]
 
 
 def test_nested_bare_blocks_splice():
     scope = parse_scad("{ cube(1); { sphere(2); } }")
-    assert [s.module for s in scope.children] == ["cube", "sphere"]
+    assert call_names(scope.children) == ["cube", "sphere"]
 
 
 ## =========================================================================
@@ -128,7 +145,7 @@ def test_nested_bare_blocks_splice():
 def test_call_with_block_body():
     scope = parse_scad("translate([1,2,3]) { cube(1); sphere(2); }")
     translate = single_call(scope)
-    assert [s.module for s in translate.children] == ["cube", "sphere"]
+    assert call_names(translate.children) == ["cube", "sphere"]
 
 
 def test_call_with_braced_block_is_single_child():
@@ -139,10 +156,12 @@ def test_call_with_braced_block_is_single_child():
     )
     call = scope.children[1]
     assert isinstance(call, ModuleCallStatement)
-    assert [s.module for s in call.children] == ["echo", "union"]
+    assert call_names(call.children) == ["echo", "union"]
     union = call.children[1]
     assert isinstance(union, ModuleCallStatement)
-    assert union.children[0].module == "echo"
+    first_child = union.children[0]
+    assert isinstance(first_child, ModuleCallStatement)
+    assert first_child.module == "echo"
 
 
 def test_bare_block_inside_call_body_is_unwrapped():
@@ -151,7 +170,7 @@ def test_bare_block_inside_call_body_is_unwrapped():
     scope = parse_scad('module my_mod() { children(1); } my_mod() { echo("aaa"); { echo("bbb"); echo("ccc"); } }')
     call = scope.children[1]
     assert isinstance(call, ModuleCallStatement)
-    assert [s.module for s in call.children] == ["echo", "echo", "echo"]
+    assert call_names(call.children) == ["echo", "echo", "echo"]
 
 
 ## =========================================================================
@@ -305,7 +324,7 @@ def test_paren_expression():
 def test_array_literal_builds_list_of_expressions():
     scope = parse_scad("cube([12, var2+2, -3.2]);")
     expr = single_call(scope).positional_args[0]
-    assert isinstance(expr, ArrayLiteral)
+    assert isinstance(expr, VectorLiteral)
     assert expr.elements == [
         NumberLiteral(12.0),
         BinaryOp("+", Variable("var2"), NumberLiteral(2.0)),
@@ -334,7 +353,102 @@ def test_constant_array_folds_to_literal():
 
 def test_comments_are_ignored():
     scope = parse_scad("// line comment\ncube(1);\n/* block\ncomment */\nsphere(2);\n")
-    assert [s.module for s in scope.children] == ["cube", "sphere"]
+    assert call_names(scope.children) == ["cube", "sphere"]
+
+
+## =========================================================================
+#  Expression forms (the full operator/literal grammar)
+
+
+def _binding_value(source: str):
+    scope = parse_scad(source)
+    binding = scope.children[0]
+    assert isinstance(binding, VariableBindingStatement)
+    return binding.value
+
+
+def test_unary_minus_binds_looser_than_exponent():
+    # OpenSCAD: -2^2 == -(2^2) == -4, so the sign is an expression node,
+    # not part of the number token.
+    scope = parse_scad("cube(-2^2);")
+    assert single_call(scope).positional_args == [NumberLiteral(-4.0)]
+
+
+def test_exponent_is_right_associative():
+    scope = parse_scad("cube(2^3^2);")  # 2^(3^2) == 512
+    assert single_call(scope).positional_args == [NumberLiteral(512.0)]
+
+
+def test_precedence_multiplication_before_addition():
+    scope = parse_scad("cube(1+2*3);")
+    assert single_call(scope).positional_args == [NumberLiteral(7.0)]
+
+
+def test_precedence_relational_binds_tighter_than_equality():
+    scope = parse_scad("cube(1<2 == 3<4);")
+    assert single_call(scope).positional_args == [BooleanLiteral(True)]
+
+
+def test_logical_not_binds_tighter_than_and():
+    scope = parse_scad("cube(!a && b);")
+    expr = single_call(scope).positional_args[0]
+    assert isinstance(expr, BinaryOp)
+    assert expr.op == "&&"
+    assert expr.left == UnaryOp("!", Variable("a"))
+    assert expr.right == Variable("b")
+
+
+def test_ternary_is_right_associative():
+    scope = parse_scad("cube(a ? b : c ? d : e);")
+    expr = single_call(scope).positional_args[0]
+    assert isinstance(expr, TernaryOp)
+    assert expr.then_expr == Variable("b")
+    assert isinstance(expr.else_expr, TernaryOp)
+
+
+def test_scientific_number_notation():
+    assert single_call(parse_scad("cube(1e3);")).positional_args == [NumberLiteral(1000.0)]
+    assert single_call(parse_scad("cube(2.5e-2);")).positional_args == [NumberLiteral(0.025)]
+
+
+def test_string_literal_decodes_escapes():
+    assert _binding_value('s = "a\\tb\\x41\\u03a9";') == StringLiteral("a\tbAΩ")
+
+
+def test_range_literals():
+    assert _binding_value("r = [3:5];") == Literal(RangeValue(3.0, 1.0, 5.0))
+    assert _binding_value("r = [0:2:10];") == Literal(RangeValue(0.0, 2.0, 10.0))
+
+
+def test_index_expression_folds_constants():
+    assert _binding_value("v = [1,2,3][1];") == Literal(2.0)
+    assert _binding_value('s = "abc"[2];') == StringLiteral("c")
+
+
+def test_member_access_is_index_sugar():
+    assert _binding_value("p = [1,2,3].y;") == Literal(2.0)
+
+
+def test_member_access_unknown_member_is_syntax_error():
+    with pytest.raises(ProtoSCADError) as excinfo:
+        parse_scad("p = [1,2].q;")
+    assert excinfo.value.diagnostic.code == ErrorCode.SYNTAX
+
+
+def test_function_call_expression():
+    assert _binding_value("x = sin(90) + 1;") == BinaryOp("+", Call("sin", [NumberLiteral(90.0)]), NumberLiteral(1.0))
+
+
+def test_let_expression():
+    assert _binding_value("x = let(a=2) a*3;") == LetExpr(
+        [Assignment("a", NumberLiteral(2.0))],
+        BinaryOp("*", Variable("a"), NumberLiteral(3.0)),
+    )
+
+
+def test_undef_and_boolean_literals_parse():
+    assert _binding_value("u = undef;") == UndefLiteral()
+    assert _binding_value("b = true;") == BooleanLiteral(True)
 
 
 ## =========================================================================
@@ -349,3 +463,20 @@ def test_named_arg_before_positional_is_rejected():
 def test_valid_mixed_args_produce_no_errors():
     _, errors = parse_scad_with_errors("foo(1, 2, r=5);")
     assert errors == []
+
+
+def test_logical_or_expression():
+    expr = _binding_value("x = a || b;")
+    assert expr == BinaryOp("||", Variable("a"), Variable("b"))
+
+
+def test_function_call_rejects_named_arguments():
+    with pytest.raises(ProtoSCADError) as excinfo:
+        parse_scad("x = pow(2, e=3);")
+    assert excinfo.value.diagnostic.code == ErrorCode.INVALID_ARGUMENT
+
+
+def test_let_expression_folds_constant_body():
+    expr = _binding_value("x = let(a=2) 3+4;")
+    assert isinstance(expr, LetExpr)
+    assert expr.body == NumberLiteral(7.0)

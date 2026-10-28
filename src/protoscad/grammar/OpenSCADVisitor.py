@@ -1,4 +1,4 @@
-# Generated from src/protoscad/grammar/OpenSCAD.g4 by ANTLR 4.13.2
+# Generated from C:/Users/arsbir/Documents/protoscad/src/protoscad/grammar/OpenSCAD.g4 by ANTLR 4.13.2
 from antlr4 import *
 if "." in __name__:
     from .OpenSCADParser import OpenSCADParser
@@ -124,13 +124,13 @@ class OpenSCADVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by OpenSCADParser#StringExpr.
-    def visitStringExpr(self, ctx:OpenSCADParser.StringExprContext):
+    # Visit a parse tree produced by OpenSCADParser#UndefExpr.
+    def visitUndefExpr(self, ctx:OpenSCADParser.UndefExprContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by OpenSCADParser#MultiplicativeExpr.
-    def visitMultiplicativeExpr(self, ctx:OpenSCADParser.MultiplicativeExprContext):
+    # Visit a parse tree produced by OpenSCADParser#StringExpr.
+    def visitStringExpr(self, ctx:OpenSCADParser.StringExprContext):
         return self.visitChildren(ctx)
 
 
@@ -139,8 +139,63 @@ class OpenSCADVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by OpenSCADParser#ArrayExpr.
-    def visitArrayExpr(self, ctx:OpenSCADParser.ArrayExprContext):
+    # Visit a parse tree produced by OpenSCADParser#TrueExpr.
+    def visitTrueExpr(self, ctx:OpenSCADParser.TrueExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#EmptyVectorExpr.
+    def visitEmptyVectorExpr(self, ctx:OpenSCADParser.EmptyVectorExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#RelationalExpr.
+    def visitRelationalExpr(self, ctx:OpenSCADParser.RelationalExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#RangeExpr.
+    def visitRangeExpr(self, ctx:OpenSCADParser.RangeExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#UnaryExpr.
+    def visitUnaryExpr(self, ctx:OpenSCADParser.UnaryExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#LogicalAndExpr.
+    def visitLogicalAndExpr(self, ctx:OpenSCADParser.LogicalAndExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#IndexExpr.
+    def visitIndexExpr(self, ctx:OpenSCADParser.IndexExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#FalseExpr.
+    def visitFalseExpr(self, ctx:OpenSCADParser.FalseExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#MultiplicativeExpr.
+    def visitMultiplicativeExpr(self, ctx:OpenSCADParser.MultiplicativeExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#LogicalOrExpr.
+    def visitLogicalOrExpr(self, ctx:OpenSCADParser.LogicalOrExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#FunctionCallExpr.
+    def visitFunctionCallExpr(self, ctx:OpenSCADParser.FunctionCallExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#EqualityExpr.
+    def visitEqualityExpr(self, ctx:OpenSCADParser.EqualityExprContext):
         return self.visitChildren(ctx)
 
 
@@ -154,8 +209,38 @@ class OpenSCADVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by OpenSCADParser#MemberExpr.
+    def visitMemberExpr(self, ctx:OpenSCADParser.MemberExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#ExponentExpr.
+    def visitExponentExpr(self, ctx:OpenSCADParser.ExponentExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#LetExpression.
+    def visitLetExpression(self, ctx:OpenSCADParser.LetExpressionContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#VectorExpr.
+    def visitVectorExpr(self, ctx:OpenSCADParser.VectorExprContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by OpenSCADParser#ParenExpr.
     def visitParenExpr(self, ctx:OpenSCADParser.ParenExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#TernaryExpr.
+    def visitTernaryExpr(self, ctx:OpenSCADParser.TernaryExprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#range.
+    def visitRange(self, ctx:OpenSCADParser.RangeContext):
         return self.visitChildren(ctx)
 
 

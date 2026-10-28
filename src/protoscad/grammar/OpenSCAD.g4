@@ -66,29 +66,65 @@ namedArgs   : namedArg (',' namedArg)* ;
 
 namedArg    : IDENT EQ expr ;
 
-expr        : expr ('*' | '/') expr     # MultiplicativeExpr
-            | expr ('+' | '-') expr     # AdditiveExpr
-            | NUMBER                    # NumberExpr
-            | STRING                    # StringExpr
-            | IDENT                     # IdentExpr
-            | '[' exprList? ']'         # ArrayExpr
-            | '(' expr ')'              # ParenExpr
-            ;
+// Expressions. In ANTLR left-recursive rules the FIRST alternative binds
+// tightest, so the ladder below is ordered from tightest (indexing) to
+// loosest (ternary), matching OpenSCAD: `!a && b`, `-2^2 == -4`,
+// `a < b == c < d`, `x ? y : x ? z : w`.
+expr
+    : expr '[' expr ']'                        # IndexExpr
+    | expr '.' IDENT                           # MemberExpr
+    | <assoc=right> expr '^' expr              # ExponentExpr
+    | ('+' | '-' | '!') expr                   # UnaryExpr
+    | expr ('*' | '/' | '%') expr              # MultiplicativeExpr
+    | expr ('+' | '-') expr                    # AdditiveExpr
+    | expr ('<' | '<=' | '>' | '>=') expr      # RelationalExpr
+    | expr ('==' | '!=') expr                  # EqualityExpr
+    | expr '&&' expr                           # LogicalAndExpr
+    | expr '||' expr                           # LogicalOrExpr
+    | <assoc=right> expr '?' expr ':' expr     # TernaryExpr
+    | NUMBER                                   # NumberExpr
+    | STRING                                   # StringExpr
+    | TRUE                                     # TrueExpr
+    | FALSE                                    # FalseExpr
+    | UNDEF                                    # UndefExpr
+    | IDENT                                    # IdentExpr
+    | IDENT '(' argList? ')'                   # FunctionCallExpr
+    | '[' exprList ']'                         # VectorExpr
+    | '[' ']'                                  # EmptyVectorExpr
+    | '[' range ']'                            # RangeExpr
+    | LET '(' letBindingList ')' expr          # LetExpression
+    | '(' expr ')'                             # ParenExpr
+    ;
 
-// Comma-separated expression list inside an array literal, e.g. [12, var2+2, -3.2].
+// [start:end] or [start:step:end]; the end is inclusive.
+range : expr ':' expr (':' expr)? ;
+
+// Comma-separated expression list inside a vector literal, e.g. [12, var2+2, -3.2].
 exprList    : expr
             | expr ',' exprList
             ;
 
 // Lexer rules (UPPERCASE)
 EQ          : '=' ;
-// Must precede IDENT: for input `let` both rules match with equal length, and
-// ANTLR breaks ties by rule order, so LET wins. Longer words like `letter`
-// still lex as IDENT (longest-match takes precedence).
+// Keyword rules must precede IDENT: for a keyword both rules match with
+// equal length and ANTLR breaks ties by rule order, so the keyword wins.
+// Longer words like `letter` still lex as IDENT (longest-match wins).
 LET         : 'let' ;
+TRUE        : 'true' ;
+FALSE       : 'false' ;
+UNDEF       : 'undef' ;
 IDENT       : '$'? [a-zA-Z_][a-zA-Z0-9_]* ;
-NUMBER      : '-'? [0-9]+ ('.' [0-9]+)? ;
-STRING      : '"' (~["\r\n])* '"' ;
+NUMBER      : [0-9]+ ('.' [0-9]+)? ([eE] [+-]? [0-9]+)? ;
+// Escape sequences are decoded after lexing (values.unescape_string).
+STRING      : '"' ( '\\' . | ~["\\\r\n] )* '"' ;
+LT          : '<' ;
+LE          : '<=' ;
+GT          : '>' ;
+GE          : '>=' ;
+EQEQ        : '==' ;
+NE          : '!=' ;
+AND         : '&&' ;
+OR          : '||' ;
 
 // Skipped:
 COMMENT     : '//' ~[\r\n]* -> skip ;

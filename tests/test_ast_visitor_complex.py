@@ -5,7 +5,7 @@ from antlr4.error.ErrorListener import ErrorListener
 
 from protoscad.grammar.OpenSCADLexer import OpenSCADLexer
 from protoscad.grammar.OpenSCADParser import OpenSCADParser
-from protoscad.tree.expression import ArrayLiteral, BinaryOp, Literal, NumberLiteral, Variable
+from protoscad.tree.expression import BinaryOp, BooleanLiteral, Literal, NumberLiteral, Variable, VectorLiteral
 from protoscad.tree.statement import (
     ModuleCallStatement,
     VariableBindingStatement,
@@ -133,18 +133,23 @@ def test_chained_scale_translate_box_nesting():
     assert isinstance(translate, ModuleCallStatement)
     assert translate.module == "translate"
     # The array literal [width, depth, height] resolves to variables
-    assert translate.positional_args == [ArrayLiteral([Variable("width"), Variable("depth"), Variable("height")])]
+    assert translate.positional_args == [VectorLiteral([Variable("width"), Variable("depth"), Variable("height")])]
 
     # translate's body: box, cylinder, and the nested bare block (transparent,
     # so its sphere and translate->cube land directly in translate's children).
-    assert [s.module for s in translate.children] == ["box", "cylinder", "sphere", "translate"]
+    assert [s.module for s in translate.children if isinstance(s, ModuleCallStatement)] == [
+        "box",
+        "cylinder",
+        "sphere",
+        "translate",
+    ]
 
     # box uses a named arg center=true
     box = translate.children[0]
     assert isinstance(box, ModuleCallStatement)
     assert box.module == "box"
     assert box.positional_args == [NumberLiteral(5.0)]
-    assert box.named_args == {"center": Variable("true")}
+    assert box.named_args == {"center": BooleanLiteral(True)}
 
     # cylinder uses named r, h, center
     cylinder = translate.children[1]
@@ -153,7 +158,7 @@ def test_chained_scale_translate_box_nesting():
     assert cylinder.named_args == {
         "r": NumberLiteral(3.0),
         "h": Variable("height"),
-        "center": Variable("true"),
+        "center": BooleanLiteral(True),
     }
 
     # The nested bare block's sphere
@@ -188,7 +193,7 @@ def test_let_binding_becomes_variable_binding_statement():
     translate = let_node.children[1]
     assert isinstance(translate, ModuleCallStatement)
     assert translate.module == "translate"
-    assert translate.positional_args == [ArrayLiteral([NumberLiteral(0.0), NumberLiteral(0.0), Variable("offset")])]
+    assert translate.positional_args == [VectorLiteral([NumberLiteral(0.0), NumberLiteral(0.0), Variable("offset")])]
     box = translate.children[0]
     assert isinstance(box, ModuleCallStatement)
     assert box.module == "box"
@@ -222,7 +227,7 @@ def test_rotate_chain_uses_top_level_variable():
     assert box.module == "box"
     # box(width, center=true): width is a Variable reference
     assert box.positional_args == [Variable("width")]
-    assert box.named_args == {"center": Variable("true")}
+    assert box.named_args == {"center": BooleanLiteral(True)}
 
 
 def test_all_module_calls_have_expected_count():

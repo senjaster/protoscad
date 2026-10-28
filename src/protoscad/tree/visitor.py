@@ -1,15 +1,24 @@
+from protoscad.diagnostics import ErrorCode, ProtoSCADError
 from protoscad.grammar.OpenSCADParser import OpenSCADParser
 from protoscad.grammar.OpenSCADVisitor import OpenSCADVisitor
 from protoscad.tree.expression import (
-    ArrayLiteral,
     Assignment,
     BinaryOp,
+    BooleanLiteral,
+    Call,
     Expression,
+    Index,
+    LetExpr,
     NumberLiteral,
     Paren,
-    Raw,
+    RangeLiteral,
+    StringLiteral,
+    TernaryOp,
+    UnaryOp,
     Undefined,
+    UndefLiteral,
     Variable,
+    VectorLiteral,
     fold,
 )
 from protoscad.tree.statement import (
@@ -19,6 +28,7 @@ from protoscad.tree.statement import (
     Statement,
     VariableBindingStatement,
 )
+from protoscad.tree.values import unescape_string
 
 
 class AstOpenSCADVisitor(OpenSCADVisitor):
@@ -223,34 +233,147 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
     ## =========================================================================
     #  Expressions
 
-    # Visit a parse tree produced by OpenSCADParser#StringExpr.
-    def visitStringExpr(self, ctx: OpenSCADParser.StringExprContext):
-        return self._expr_stub(ctx)
-
-    # Visit a parse tree produced by OpenSCADParser#IdentExpr.
-    def visitIdentExpr(self, ctx: OpenSCADParser.IdentExprContext) -> Variable:
-        return Variable(ctx.IDENT().getText(), span=self._span(ctx))
-
-    # Visit a parse tree produced by OpenSCADParser#ArrayExpr.
-    def visitArrayExpr(self, ctx: OpenSCADParser.ArrayExprContext) -> Expression:
-        elements = self.visit(ctx.exprList()) if ctx.exprList() is not None else []
-        return fold(ArrayLiteral(elements, span=self._span(ctx)))
+    # Shared shape of every binary alternative: `left op right` with the
+    # operator as the middle child.
+    def _binary_expr(self, ctx, left, right) -> Expression:
+        op = ctx.getChild(1).getText()
+        return fold(BinaryOp(op=op, left=left, right=right, span=self._span(ctx)))
 
     # Visit a parse tree produced by OpenSCADParser#NumberExpr.
     def visitNumberExpr(self, ctx: OpenSCADParser.NumberExprContext) -> NumberLiteral:
         return NumberLiteral(float(ctx.NUMBER().getText()), span=self._span(ctx))
 
-    # Visit a parse tree produced by OpenSCADParser#AdditiveExpr.
-    def visitAdditiveExpr(self, ctx: OpenSCADParser.AdditiveExprContext) -> Expression:
-        left = self.visit(ctx.expr(0))
-        right = self.visit(ctx.expr(1))
-        return fold(BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right, span=self._span(ctx)))
+    # Visit a parse tree produced by OpenSCADParser#StringExpr.
+    def visitStringExpr(self, ctx: OpenSCADParser.StringExprContext) -> StringLiteral:
+        raw = ctx.STRING().getText()
+        return StringLiteral(unescape_string(raw[1:-1]), span=self._span(ctx))
+
+    # Visit a parse tree produced by OpenSCADParser#TrueExpr.
+    def visitTrueExpr(self, ctx: OpenSCADParser.TrueExprContext) -> BooleanLiteral:
+        return BooleanLiteral(True, span=self._span(ctx))
+
+    # Visit a parse tree produced by OpenSCADParser#FalseExpr.
+    def visitFalseExpr(self, ctx: OpenSCADParser.FalseExprContext) -> BooleanLiteral:
+        return BooleanLiteral(False, span=self._span(ctx))
+
+    # Visit a parse tree produced by OpenSCADParser#UndefExpr.
+    def visitUndefExpr(self, ctx: OpenSCADParser.UndefExprContext) -> UndefLiteral:
+        return UndefLiteral(span=self._span(ctx))
+
+    # Visit a parse tree produced by OpenSCADParser#IdentExpr.
+    def visitIdentExpr(self, ctx: OpenSCADParser.IdentExprContext) -> Variable:
+        return Variable(ctx.IDENT().getText(), span=self._span(ctx))
+
+    # Visit a parse tree produced by OpenSCADParser#FunctionCallExpr.
+    def visitFunctionCallExpr(self, ctx: OpenSCADParser.FunctionCallExprContext) -> Call:
+        positional: list[Expression] = []
+        named: dict[str, Expression] = {}
+        if ctx.argList() is not None:
+            positional, named = self.visit(ctx.argList())
+        if named:
+            # User-defined functions (the callers that accept named
+            # arguments) do not exist yet; builtins are positional.
+            arg = next(iter(named.values()))
+            raise ProtoSCADError(
+                "Named arguments are not supported in function calls",
+                code=ErrorCode.INVALID_ARGUMENT,
+                span=arg.span,
+            )
+        return Call(ctx.IDENT().getText(), positional, span=self._span(ctx))
+
+    # Visit a parse tree produced by OpenSCADParser#VectorExpr.
+    def visitVectorExpr(self, ctx: OpenSCADParser.VectorExprContext) -> Expression:
+        elements = self.visit(ctx.exprList())
+        return fold(VectorLiteral(elements, span=self._span(ctx)))
+
+    # Visit a parse tree produced by OpenSCADParser#EmptyVectorExpr.
+    def visitEmptyVectorExpr(self, ctx: OpenSCADParser.EmptyVectorExprContext) -> Expression:
+        return fold(VectorLiteral([], span=self._span(ctx)))
+
+    # Visit a parse tree produced by OpenSCADParser#RangeExpr.
+    def visitRangeExpr(self, ctx: OpenSCADParser.RangeExprContext) -> Expression:
+        # The `range` rule accessor is `range_` in the generated code
+        # (ANTLR avoids shadowing the Python builtin).
+        parts = ctx.range_().expr()
+        step = self.visit(parts[1]) if len(parts) == 3 else None
+        end = parts[2] if len(parts) == 3 else parts[1]
+        return fold(
+            RangeLiteral(
+                start=self.visit(parts[0]),
+                step=step,
+                end=self.visit(end),
+                span=self._span(ctx),
+            )
+        )
+
+    # Visit a parse tree produced by OpenSCADParser#IndexExpr.
+    def visitIndexExpr(self, ctx: OpenSCADParser.IndexExprContext) -> Expression:
+        collection = self.visit(ctx.expr(0))
+        index = self.visit(ctx.expr(1))
+        return fold(Index(collection=collection, index=index, span=self._span(ctx)))
+
+    # Visit a parse tree produced by OpenSCADParser#MemberExpr.
+    def visitMemberExpr(self, ctx: OpenSCADParser.MemberExprContext) -> Expression:
+        # `.x/.y/.z` are sugar for [0]/[1]/[2]; OpenSCAD defines no other
+        # members (object fields are a dev-snapshot feature).
+        axis = {"x": 0.0, "y": 1.0, "z": 2.0}.get(ctx.IDENT().getText())
+        if axis is None:
+            raise ProtoSCADError(
+                f"Unknown member .{ctx.IDENT().getText()}: only .x, .y, .z are defined",
+                code=ErrorCode.SYNTAX,
+                span=self._span(ctx),
+            )
+        collection = self.visit(ctx.expr())
+        return fold(Index(collection=collection, index=NumberLiteral(axis), span=self._span(ctx)))
+
+    # Visit a parse tree produced by OpenSCADParser#ExponentExpr.
+    def visitExponentExpr(self, ctx: OpenSCADParser.ExponentExprContext) -> Expression:
+        return self._binary_expr(ctx, self.visit(ctx.expr(0)), self.visit(ctx.expr(1)))
+
+    # Visit a parse tree produced by OpenSCADParser#UnaryExpr.
+    def visitUnaryExpr(self, ctx: OpenSCADParser.UnaryExprContext) -> Expression:
+        op = ctx.getChild(0).getText()
+        return fold(UnaryOp(op=op, operand=self.visit(ctx.expr()), span=self._span(ctx)))
 
     # Visit a parse tree produced by OpenSCADParser#MultiplicativeExpr.
     def visitMultiplicativeExpr(self, ctx: OpenSCADParser.MultiplicativeExprContext) -> Expression:
-        left = self.visit(ctx.expr(0))
-        right = self.visit(ctx.expr(1))
-        return fold(BinaryOp(op=ctx.getChild(1).getText(), left=left, right=right, span=self._span(ctx)))
+        return self._binary_expr(ctx, self.visit(ctx.expr(0)), self.visit(ctx.expr(1)))
+
+    # Visit a parse tree produced by OpenSCADParser#AdditiveExpr.
+    def visitAdditiveExpr(self, ctx: OpenSCADParser.AdditiveExprContext) -> Expression:
+        return self._binary_expr(ctx, self.visit(ctx.expr(0)), self.visit(ctx.expr(1)))
+
+    # Visit a parse tree produced by OpenSCADParser#RelationalExpr.
+    def visitRelationalExpr(self, ctx: OpenSCADParser.RelationalExprContext) -> Expression:
+        return self._binary_expr(ctx, self.visit(ctx.expr(0)), self.visit(ctx.expr(1)))
+
+    # Visit a parse tree produced by OpenSCADParser#EqualityExpr.
+    def visitEqualityExpr(self, ctx: OpenSCADParser.EqualityExprContext) -> Expression:
+        return self._binary_expr(ctx, self.visit(ctx.expr(0)), self.visit(ctx.expr(1)))
+
+    # Visit a parse tree produced by OpenSCADParser#LogicalAndExpr.
+    def visitLogicalAndExpr(self, ctx: OpenSCADParser.LogicalAndExprContext) -> Expression:
+        return self._binary_expr(ctx, self.visit(ctx.expr(0)), self.visit(ctx.expr(1)))
+
+    # Visit a parse tree produced by OpenSCADParser#LogicalOrExpr.
+    def visitLogicalOrExpr(self, ctx: OpenSCADParser.LogicalOrExprContext) -> Expression:
+        return self._binary_expr(ctx, self.visit(ctx.expr(0)), self.visit(ctx.expr(1)))
+
+    # Visit a parse tree produced by OpenSCADParser#TernaryExpr.
+    def visitTernaryExpr(self, ctx: OpenSCADParser.TernaryExprContext) -> Expression:
+        return fold(
+            TernaryOp(
+                condition=self.visit(ctx.expr(0)),
+                then_expr=self.visit(ctx.expr(1)),
+                else_expr=self.visit(ctx.expr(2)),
+                span=self._span(ctx),
+            )
+        )
+
+    # Visit a parse tree produced by OpenSCADParser#LetExpression.
+    def visitLetExpression(self, ctx: OpenSCADParser.LetExpressionContext) -> Expression:
+        bindings = [assignment for assignment, _ in self.visit(ctx.letBindingList())]
+        return fold(LetExpr(bindings=bindings, body=self.visit(ctx.expr()), span=self._span(ctx)))
 
     # Visit a parse tree produced by OpenSCADParser#ParenExpr.
     def visitParenExpr(self, ctx: OpenSCADParser.ParenExprContext) -> Expression:
@@ -262,8 +385,3 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
         if ctx.exprList() is not None:
             elements.extend(self.visit(ctx.exprList()))
         return elements
-
-    # Temporary stand-in for the not-yet-implemented string expression.
-    # Captures the raw source text so args/let-bindings are wired up correctly.
-    def _expr_stub(self, ctx):
-        return Raw(ctx.getText(), span=self._span(ctx))

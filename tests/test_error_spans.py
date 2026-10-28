@@ -92,3 +92,25 @@ def test_openscad_cycle_error_carries_definition_span():
     diagnostic = excinfo.value.diagnostic
     assert diagnostic.code == ErrorCode.CIRCULAR_DEPENDENCY
     assert diagnostic.span == SourceSpan(3, 0, 3, 10)
+
+
+def test_type_error_carries_operator_span():
+    source = "cube(1);\ns = 1;\ncube(s + [1]);\n"
+    with pytest.raises(ProtoSCADError) as excinfo:
+        evaluate_source(source)
+    diagnostic = excinfo.value.diagnostic
+    assert diagnostic.code == ErrorCode.TYPE_ERROR
+    assert diagnostic.span is not None
+    assert diagnostic.span.start_line == 3
+
+
+def test_unknown_function_error_carries_call_span():
+    # The function call sits in a module argument: arguments evaluate
+    # eagerly, so the error surfaces even though no variable is read.
+    source = "cube(1);\ncube(nosuch(1));\n"
+    with pytest.raises(ProtoSCADError) as excinfo:
+        evaluate_source(source)
+    diagnostic = excinfo.value.diagnostic
+    assert diagnostic.code == ErrorCode.UNKNOWN_FUNCTION
+    assert diagnostic.span is not None
+    assert diagnostic.span.start_line == 2
