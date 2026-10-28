@@ -10,9 +10,13 @@ requires-python = ">=3.14"
 dependencies = [
     "antlr4-python3-runtime==4.13.2",
     "click>=8.5.0",
+    "lxml",
+    # trimesh's 3MF exporter builds its scene graph with networkx directly;
+    # scipy does not substitute for it.
+    "networkx",
     "manifold3d>=3.5.4",
     "pyglet<2",
-    "trimesh[easy]>=5.1.1",
+    "trimesh>=5.1.1",
 ]
 
 [project.scripts]
