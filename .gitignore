@@ -8,11 +8,14 @@ wheels/
 
 # IDE
 .idea
-.nessy
 
+# AI
+.nessy
+.zcodeignore
 # Virtual environments
 .venv
 
 .coverage
 
 *.stl
+*.scad
