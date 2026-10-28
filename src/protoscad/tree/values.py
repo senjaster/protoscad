@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, TypeGuard
 
 from protoscad.diagnostics import ErrorCode, ProtoSCADError
 
@@ -57,7 +57,7 @@ def type_of(value: Any) -> Type:
     return Type.UNKNOWN
 
 
-def is_number(value: Any) -> bool:
+def is_number(value: Any) -> TypeGuard[float]:
     """Whether ``value`` is an OpenSCAD number (booleans excluded)."""
     return isinstance(value, int | float) and not isinstance(value, bool)
 
