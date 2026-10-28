@@ -607,12 +607,13 @@ def test_builtin_reads_special_variable_argument():
     assert probe.calls == [{"$fn": 36.0}, {"$fn": None}]
 
 
-def test_geometry_builtin_accepts_special_variable_argument():
-    # $fn is routed into the subtree environment; SphereModule does not
-    # consume it yet, so this only asserts the call evaluates to a proper
-    # solid (a faceted unit sphere has volume below the ideal 4/3*pi).
-    result = evaluate_with_modules("sphere($fn = 12);", [SphereModule()])
-    assert 0 < result.volume() < 4.18879
+def test_geometry_builtin_consumes_special_variable_argument():
+    # SphereModule reads $fn from the call environment: more fragments
+    # refine the mesh toward the ideal 4/3*pi, always from below —
+    # a faceted sphere under-approximates.
+    coarse = evaluate_with_modules("sphere($fn = 4);", [SphereModule()])
+    fine = evaluate_with_modules("sphere($fn = 12);", [SphereModule()])
+    assert 0 < coarse.volume() < fine.volume() < 4.18879
 
 
 def test_special_variable_argument_visible_to_sibling_args():

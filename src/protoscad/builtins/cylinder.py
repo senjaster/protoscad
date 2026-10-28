@@ -4,6 +4,7 @@ from collections.abc import Mapping
 
 from manifold3d import Manifold
 
+from protoscad.builtins._fragments import tessellation_for
 from protoscad.runtime.invocation import Invocation
 from protoscad.runtime.module_definition import BuiltinModule
 from protoscad.tree.expression import Assignment, Literal, NumberLiteral
@@ -15,7 +16,11 @@ class CylinderModule(BuiltinModule):
         radius_low = self._resolve_radius(ctx, "r1", "d1", "r", "d")
         radius_high = self._resolve_radius(ctx, "r2", "d2", "r", "d")
         center = bool(ctx.arg_values["center"])
-        return Manifold.cylinder(height, radius_low, radius_high, 0, center)
+        # OpenSCAD sizes both circles of a cone by the larger radius's
+        # fragment budget, so a cone and the cylinder it trims from share
+        # the same polygon count around the axis.
+        fragments = tessellation_for(ctx, max(radius_low, radius_high))
+        return Manifold.cylinder(height, radius_low, radius_high, fragments, center)
 
     @staticmethod
     def _resolve_radius(ctx: Invocation, r_name: str, d_name: str, r_common: str, d_common: str) -> float:
