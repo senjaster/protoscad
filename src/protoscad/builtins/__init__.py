@@ -6,6 +6,7 @@ from protoscad.builtins.difference import DifferenceModule
 from protoscad.builtins.hull import HullModule
 from protoscad.builtins.intersection import IntersectionModule
 from protoscad.builtins.let import LetModule
+from protoscad.builtins.loops import ForModule, IntersectionForModule
 from protoscad.builtins.minkowski import MinkowskiModule
 from protoscad.builtins.mirror import MirrorModule
 from protoscad.builtins.rotate import RotateModule
@@ -26,8 +27,10 @@ __all__ = [
     "CubeModule",
     "CylinderModule",
     "DifferenceModule",
+    "ForModule",
     "HullModule",
     "IntersectionModule",
+    "IntersectionForModule",
     "LetModule",
     "MinkowskiModule",
     "MirrorModule",
@@ -42,8 +45,10 @@ BUILTIN_MODULES: list[BuiltinModuleFactory] = [
     CubeModule,
     CylinderModule,
     DifferenceModule,
+    ForModule,
     HullModule,
     IntersectionModule,
+    IntersectionForModule,
     LetModule,
     MinkowskiModule,
     MirrorModule,

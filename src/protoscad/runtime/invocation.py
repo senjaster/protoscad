@@ -101,7 +101,12 @@ class Invocation:
 
     @cached_property
     def child_env(self) -> Environment:
-        """The scope the call introduces for its children.
+        """The scope the call introduces for its children."""
+        return self.build_child_scope(self.call_env)
+
+    def build_child_scope(self, base: Environment) -> Environment:
+        """Build the call's child scope over ``base`` instead of the call's
+        own environment.
 
         The scope's variable map is built by the environment's
         ``BindingResolver`` strategy (see ``runtime.resolver``): the default
@@ -111,9 +116,13 @@ class Invocation:
         there are no child calls, so unknown-name errors in bindings
         surface. Call arguments and module bodies see the same map
         regardless of source order.
+
+        ``for`` passes an iteration scope (the call environment plus the
+        current loop-variable values) as ``base``, so the body's bindings
+        and module definitions rebuild per iteration against those values.
         """
         bindings = [s for s in self.node.children if isinstance(s, VariableBindingStatement)]
-        variables = self.call_env.resolver.resolve(self.call_env, bindings)
+        variables = base.resolver.resolve(base, bindings)
 
         definitions: list[ModuleDefinitionStatement] = []
 
@@ -121,7 +130,7 @@ class Invocation:
             if isinstance(statement, ModuleDefinitionStatement):
                 definitions.append(statement)
 
-        scope_env = self.call_env.extend_variables(variables) if variables else self.call_env
+        scope_env = base.extend_variables(variables) if variables else base
         if definitions:
             modules = {
                 definition.name: ModuleClosure.from_definition(definition, scope_env) for definition in definitions
@@ -144,15 +153,17 @@ class Invocation:
             merged[name] = assignment.value.evaluate(self.call_env)
         return merged
 
-    def evaluate_children(self) -> list[Any]:
+    def evaluate_children(self, env: Environment | None = None) -> list[Any]:
         """Evaluate every child, flattening multi-geometry results and
         dropping empty ones.
 
         The child scope (and with it the scope's variable bindings) is
         built even when there are no child calls: bindings evaluate
-        eagerly, like OpenSCAD's compile-time scope setup.
+        eagerly, like OpenSCAD's compile-time scope setup. ``env`` overrides
+        where the children evaluate — a loop passes the scope it built for
+        the current iteration (see ``build_child_scope``).
         """
-        child_env = self.child_env
+        child_env = self.child_env if env is None else env
         results: list[Any] = []
         for statement in self.children:
             result = self.evaluate(statement, child_env)

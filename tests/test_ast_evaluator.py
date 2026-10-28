@@ -8,6 +8,7 @@ from antlr4 import CommonTokenStream, InputStream
 from manifold3d import Manifold
 
 from protoscad.builtins.cube import CubeModule
+from protoscad.builtins.loops import ForModule, IntersectionForModule
 from protoscad.builtins.sphere import SphereModule
 from protoscad.builtins.translate import TranslateModule
 from protoscad.diagnostics import ProtoSCADError
@@ -51,27 +52,6 @@ class RecordingModule(BuiltinModule):
     @property
     def parameters(self) -> Mapping[str, Assignment]:
         return self._parameters
-
-
-class ForLoopModule(BuiltinModule):
-    """Demonstrates the instantiate contract: an ordinary builtin can
-    re-evaluate its body once per value with a fresh binding."""
-
-    def instantiate(self, ctx: Invocation) -> list[Manifold]:
-        results = []
-        for value in ctx.arg_values["values"]:
-            env = ctx.child_env.extend_variables({"i": Assignment("i", NumberLiteral(value))})
-            for statement in ctx.children:
-                results.append(ctx.evaluate(statement, env))
-        return results
-
-    @property
-    def name(self) -> str:
-        return "for"
-
-    @property
-    def parameters(self) -> Mapping[str, Assignment]:
-        return self.make_parameters(required=("values",))
 
 
 class SpecialVarProbeModule(BuiltinModule):
@@ -371,24 +351,124 @@ def test_children_are_not_evaluated_unless_module_asks():
     assert result.volume() == pytest.approx(8.0)
 
 
-def test_for_loop_implemented_as_ordinary_builtin():
+## =========================================================================
+#  for() / intersection_for()
+
+
+def test_for_loop_iterates_vector():
     probe = RecordingModule("probe")
-    result = evaluate_with_modules(
-        "for(values = [10, 20, 30]) probe(i);",
-        [ForLoopModule(), probe],
-    )
+    result = evaluate_with_modules("for(i = [10, 20, 30]) probe(i);", [ForModule(), probe])
     assert probe.calls == [{"value": 10.0}, {"value": 20.0}, {"value": 30.0}]
     # Three coincident unit cubes union to one
     assert result.volume() == pytest.approx(1.0)
 
 
+def test_for_loop_iterates_range_with_step():
+    probe = RecordingModule("probe")
+    evaluate_with_modules("for(i = [0:2:6]) probe(i);", [ForModule(), probe])
+    assert probe.calls == [{"value": 0.0}, {"value": 2.0}, {"value": 4.0}, {"value": 6.0}]
+
+
+def test_for_loop_single_value_iterates_once():
+    probe = RecordingModule("probe")
+    evaluate_with_modules("for(i = 5) probe(i);", [ForModule(), probe])
+    assert probe.calls == [{"value": 5.0}]
+
+
+def test_for_loop_empty_iteration_set_evaluates_nothing():
+    probe = RecordingModule("probe")
+    evaluate_with_modules("for(i = []) probe(1);", [ForModule(), probe])
+    assert probe.calls == []
+
+
+def test_for_loop_nested_variables_iterate_cartesian_product():
+    probe = RecordingModule("probe")
+    probe2 = RecordingModule("probe2")
+    evaluate_with_modules(
+        "for(i = [0, 1], j = [5, 6]) { probe(i); probe2(j); }",
+        [ForModule(), probe, probe2],
+    )
+    # The leftmost variable is the outermost loop.
+    assert probe.calls == [{"value": 0.0}, {"value": 0.0}, {"value": 1.0}, {"value": 1.0}]
+    assert probe2.calls == [{"value": 5.0}, {"value": 6.0}, {"value": 5.0}, {"value": 6.0}]
+
+
+def test_for_loop_body_binding_uses_current_iteration_value():
+    # The canonical OpenSCAD idiom: a binding in the body must see the
+    # current iteration's value, not the first or last one.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "for(i = [0, 1]) { angle = i * 90; probe(angle); }",
+        [ForModule(), probe],
+    )
+    assert probe.calls == [{"value": 0.0}, {"value": 90.0}]
+
+
 def test_for_loop_body_sees_surrounding_scope():
     probe = RecordingModule("probe")
     evaluate_with_modules(
-        "outer = 5; for(values = [1]) probe(outer);",
-        [ForLoopModule(), probe],
+        "outer = 5; for(i = [1]) probe(outer);",
+        [ForModule(), probe],
     )
     assert probe.calls == [{"value": 5.0}]
+
+
+def test_for_loop_variable_shadows_outer_binding():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "i = 99; for(i = [1]) probe(i);",
+        [ForModule(), probe],
+    )
+    assert probe.calls == [{"value": 1.0}]
+
+
+def test_for_loop_special_variable_binding():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "for($i = [7, 8]) probe($i);",
+        [ForModule(), probe],
+    )
+    assert probe.calls == [{"value": 7.0}, {"value": 8.0}]
+
+
+def test_for_loop_variable_is_lexical_inside_user_modules():
+    # A module called from the body resolves names in its definition scope;
+    # the loop variable exists only in the body's own scope.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "i = 99; module Foo() { probe(i); } for(i = [1]) Foo();",
+        [ForModule(), probe],
+    )
+    assert probe.calls == [{"value": 99.0}]
+
+
+def test_for_loop_unions_geometry():
+    result = evaluate_with_modules(
+        "for(i = [0, 10]) translate([i, 0, 0]) cube(2);",
+        [CubeModule(), ForModule(), TranslateModule()],
+    )
+    assert result.volume() == pytest.approx(16.0)
+
+
+def test_intersection_for_intersects_iterations():
+    result = evaluate_with_modules(
+        "intersection_for(i = [0, 1]) translate([i, 0, 0]) cube(2);",
+        [CubeModule(), IntersectionForModule(), TranslateModule()],
+    )
+    # Two cubes offset by one along x share a 1x2x2 slab.
+    assert result.volume() == pytest.approx(4.0)
+
+
+def test_for_loop_rejects_positional_arguments():
+    probe = RecordingModule("probe")
+    with pytest.raises(ProtoSCADError, match="loop bindings"):
+        evaluate_with_modules("for([0:3]) probe(1);", [ForModule(), probe])
+
+
+def test_for_loop_without_bindings_raises():
+    probe = RecordingModule("probe")
+    with pytest.raises(ProtoSCADError, match="at least one"):
+        evaluate_with_modules("for() probe(1);", [ForModule(), probe])
 
 
 ## =========================================================================
