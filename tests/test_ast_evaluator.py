@@ -7,11 +7,12 @@ import pytest
 from antlr4 import CommonTokenStream, InputStream
 from manifold3d import Manifold
 
+from protoscad.builtins.conditional import IfModule
 from protoscad.builtins.cube import CubeModule
 from protoscad.builtins.loops import ForModule, IntersectionForModule
 from protoscad.builtins.sphere import SphereModule
 from protoscad.builtins.translate import TranslateModule
-from protoscad.diagnostics import ProtoSCADError
+from protoscad.diagnostics import ErrorCode, ProtoSCADError
 from protoscad.grammar.OpenSCADLexer import OpenSCADLexer
 from protoscad.grammar.OpenSCADParser import OpenSCADParser
 from protoscad.runtime.evaluator import evaluate
@@ -799,3 +800,143 @@ def test_type_error_carries_span_from_source():
     assert diagnostic.code.value == "type-error"
     assert diagnostic.span is not None
     assert diagnostic.span.start_line == 1
+
+
+## =========================================================================
+#  if / else
+
+
+def evaluate_with_if(source: str, modules=(), resolver=None):
+    return evaluate_with_modules(source, [IfModule(), *modules], resolver=resolver)
+
+
+def test_if_true_condition_takes_then_branch():
+    probe = RecordingModule("probe")
+    evaluate_with_if("if (true) probe(1); else probe(2);", [probe])
+    assert probe.calls == [{"value": 1.0}]
+
+
+def test_if_false_condition_takes_else_branch():
+    probe = RecordingModule("probe")
+    evaluate_with_if("if (false) probe(1); else probe(2);", [probe])
+    assert probe.calls == [{"value": 2.0}]
+
+
+def test_if_without_else_and_false_condition_evaluates_nothing():
+    probe = RecordingModule("probe")
+    evaluate_with_if("if (false) probe(1);", [probe])
+    assert probe.calls == []
+
+
+@pytest.mark.parametrize(
+    ("condition", "expected"),
+    [
+        ("1", 1.0),
+        ("-0.0", 2.0),
+        ('"text"', 1.0),
+        ('""', 2.0),
+        ("[1]", 1.0),
+        ("[]", 2.0),
+        ("true", 1.0),
+        ("false", 2.0),
+        ("undef", 2.0),
+    ],
+)
+def test_if_condition_openscad_truthiness(condition, expected):
+    probe = RecordingModule("probe")
+    evaluate_with_if(f"if ({condition}) probe(1); else probe(2);", [probe])
+    assert probe.calls == [{"value": expected}]
+
+
+def test_if_condition_evaluates_in_the_calling_scope():
+    probe = RecordingModule("probe")
+    evaluate_with_if("size = 5; if (size > 3) probe(size); else probe(0);", [probe])
+    assert probe.calls == [{"value": 5.0}]
+
+
+def test_else_if_chain_picks_one_branch():
+    probe = RecordingModule("probe")
+    evaluate_with_if(
+        """
+        x = 2;
+        if (x == 1) probe("first");
+        else if (x == 2) probe("second");
+        else probe("third");
+        """,
+        [probe],
+    )
+    assert probe.calls == [{"value": "second"}]
+
+
+def test_else_if_chain_without_final_else():
+    probe = RecordingModule("probe")
+    evaluate_with_if(
+        """
+        x = 9;
+        if (x == 1) probe("first");
+        else if (x == 2) probe("second");
+        """,
+        [probe],
+    )
+    assert probe.calls == []
+
+
+def test_nested_if_in_then_position():
+    probe = RecordingModule("probe")
+    evaluate_with_if("if (true) if (false) probe(1); else probe(2);", [probe])
+    assert probe.calls == [{"value": 2.0}]
+
+
+def test_if_inside_for_only_fires_matching_iterations():
+    probe = RecordingModule("probe", required=("i",))
+    evaluate_with_if("for (i = [0:4]) if (i % 2 == 0) probe(i);", [ForModule(), probe])
+    assert probe.calls == [{"i": 0.0}, {"i": 2.0}, {"i": 4.0}]
+
+
+def test_if_as_chain_child_inherits_the_prefix_scope():
+    probe = RecordingModule("probe")
+    evaluate_with_if("translate([1, 0, 0]) if (true) probe(1); probe(2);", [TranslateModule(), probe])
+    assert probe.calls == [{"value": 1.0}, {"value": 2.0}]
+
+
+def test_then_branch_bindings_scope_to_the_branch():
+    probe = RecordingModule("probe")
+    evaluate_with_if("if (true) { width = 7; probe(width); }", [probe])
+    assert probe.calls == [{"value": 7.0}]
+
+
+def test_branch_bindings_do_not_leak_to_the_enclosing_scope():
+    # `width` is bound only in the branch scope, so the sibling call after
+    # the if resolves it to undef — the same treatment any unknown name gets
+    # at the expression level (see docs/MISSING_FEATURES.md item 17).
+    probe = RecordingModule("probe")
+    evaluate_with_if("if (true) { width = 7; probe(width); } probe(width);", [probe])
+    assert probe.calls == [{"value": 7.0}, {"value": None}]
+
+
+def test_untaken_branch_never_resolves_its_bindings():
+    # Bindings are lazy, and the untaken branch builds no scope at all, so
+    # a name that only exists in dead code cannot break evaluation.
+    probe = RecordingModule("probe")
+    evaluate_with_if("if (false) { width = missing; probe(width); } else probe(1);", [probe])
+    assert probe.calls == [{"value": 1.0}]
+
+
+def test_module_definition_inside_branch_is_branch_local():
+    probe = RecordingModule("probe")
+    evaluate_with_if(
+        """
+        if (true) { module local() probe(1); local(); }
+        """,
+        [probe],
+    )
+    assert probe.calls == [{"value": 1.0}]
+
+
+def test_condition_error_span_points_at_the_condition():
+    probe = RecordingModule("probe")
+    with pytest.raises(ProtoSCADError) as excinfo:
+        evaluate_with_if('if (1 > "a") probe(1);', [probe])
+    diagnostic = excinfo.value.diagnostic
+    assert diagnostic.code == ErrorCode.TYPE_ERROR
+    assert diagnostic.span.start_column == 4

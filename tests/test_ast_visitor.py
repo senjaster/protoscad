@@ -480,3 +480,111 @@ def test_let_expression_folds_constant_body():
     expr = _binding_value("x = let(a=2) 3+4;")
     assert isinstance(expr, LetExpr)
     assert expr.body == NumberLiteral(7.0)
+
+
+## =========================================================================
+#  if / else statements
+
+
+def test_if_without_else():
+    (if_call,) = parse_scad("if (x > 1) cube(2);").children
+    assert isinstance(if_call, ModuleCallStatement)
+    assert if_call.module == "if"
+    assert if_call.positional_args == [BinaryOp(">", Variable("x"), NumberLiteral(1.0))]
+    assert if_call.named_args == {}
+    # One child: the true branch as an implicit-union scope.
+    (then_scope,) = if_call.children
+    assert then_scope.module == "union"
+    (then_call,) = then_scope.children
+    assert then_call.module == "cube"
+    assert then_call.positional_args == [NumberLiteral(2.0)]
+
+
+def test_if_else():
+    (if_call,) = parse_scad("if (x) cube(1); else sphere(2);").children
+    # Two children: the true branch, then the false branch.
+    assert [child.module for child in if_call.children] == ["union", "union"]
+    (then_call,) = if_call.children[0].children
+    (else_call,) = if_call.children[1].children
+    assert then_call.module == "cube"
+    assert else_call.module == "sphere"
+    assert else_call.positional_args == [NumberLiteral(2.0)]
+
+
+def test_if_with_block_body_and_empty_else_block():
+    (if_call,) = parse_scad("if (x) { cube(1); sphere(2); } else { }").children
+    then_scope, else_scope = if_call.children
+    assert [child.module for child in then_scope.children] == ["cube", "sphere"]
+    assert else_scope.children == []
+
+
+def test_if_branches_are_never_more_than_two_and_never_shift():
+    # The branch positions are fixed: an empty branch is an empty union
+    # scope, so index 0 is always the true branch and index 1 the false one.
+    (if_call,) = parse_scad("if (x) ; else cube(1);").children
+    assert len(if_call.children) == 2
+    assert if_call.children[0].children == []
+    (else_call,) = if_call.children[1].children
+    assert else_call.module == "cube"
+
+
+def test_if_else_if_chain_nests_in_else_position():
+    (outer,) = parse_scad("if (a) cube(1); else if (b) sphere(2); else cylinder(3);").children
+    assert outer.module == "if"
+    assert len(outer.children) == 2
+    (middle,) = outer.children[1].children
+    assert middle.module == "if"
+    assert middle.positional_args == [Variable("b")]
+    (final,) = middle.children[1].children
+    assert final.module == "cylinder"
+
+
+def test_then_branch_can_be_a_nested_if():
+    (outer,) = parse_scad("if (a) if (b) cube(1);").children
+    assert len(outer.children) == 1
+    (inner,) = outer.children[0].children
+    assert inner.module == "if"
+
+
+def test_dangling_else_binds_to_innermost_if():
+    (outer,) = parse_scad("if (a) if (b) cube(1); else cube(2);").children
+    assert len(outer.children) == 1
+    (inner,) = outer.children[0].children
+    assert inner.module == "if"
+    (inner_else,) = inner.children[1].children
+    assert inner_else.module == "cube"
+
+
+def test_if_in_module_call_chain_terminates_the_chain():
+    # The sphere is a sibling statement, not a conditional child of the if.
+    (translate_call, sphere_call) = parse_scad("translate([1,0,0]) if (x) cube(1); sphere(2);").children
+    assert translate_call.module == "translate"
+    (if_call,) = translate_call.children
+    assert if_call.module == "if"
+    assert sphere_call.module == "sphere"
+
+
+def test_if_is_a_statement_inside_blocks_and_module_bodies():
+    module_src = "module m() if (x) cube(1);"
+    (definition,) = parse_scad(module_src).children
+    assert isinstance(definition, ModuleDefinitionStatement)
+    (if_call,) = definition.body.children
+    assert if_call.module == "if"
+
+    (block_if,) = parse_scad("{ if (x) cube(1); }").children
+    assert block_if.module == "if"
+
+
+def test_if_with_empty_branches():
+    (if_call,) = parse_scad("if (x) ; else ;").children
+    assert [child.module for child in if_call.children] == ["union", "union"]
+    assert all(child.children == [] for child in if_call.children)
+
+
+def test_if_and_else_are_reserved_but_prefix_names_are_not():
+    # Longer names that merely start with a keyword still lex as identifiers.
+    scope = parse_scad("iffy = 3; elsewise = 4;")
+    assert [(binding.name, binding.value) for binding in scope.children] == [
+        ("iffy", NumberLiteral(3.0)),
+        ("elsewise", NumberLiteral(4.0)),
+    ]

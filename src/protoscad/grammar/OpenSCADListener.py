@@ -1,4 +1,4 @@
-# Generated from C:/Users/arsbir/Documents/protoscad/src/protoscad/grammar/OpenSCAD.g4 by ANTLR 4.13.2
+# Generated from src/protoscad/grammar/OpenSCAD.g4 by ANTLR 4.13.2
 from antlr4 import *
 if "." in __name__:
     from .OpenSCADParser import OpenSCADParser
@@ -44,6 +44,15 @@ class OpenSCADListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by OpenSCADParser#ChainedIfCall.
+    def enterChainedIfCall(self, ctx:OpenSCADParser.ChainedIfCallContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#ChainedIfCall.
+    def exitChainedIfCall(self, ctx:OpenSCADParser.ChainedIfCallContext):
+        pass
+
+
     # Enter a parse tree produced by OpenSCADParser#ModuleCallWithBlock.
     def enterModuleCallWithBlock(self, ctx:OpenSCADParser.ModuleCallWithBlockContext):
         pass
@@ -77,6 +86,33 @@ class OpenSCADListener(ParseTreeListener):
 
     # Exit a parse tree produced by OpenSCADParser#TerminalLet.
     def exitTerminalLet(self, ctx:OpenSCADParser.TerminalLetContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#ifStatement.
+    def enterIfStatement(self, ctx:OpenSCADParser.IfStatementContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#ifStatement.
+    def exitIfStatement(self, ctx:OpenSCADParser.IfStatementContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#ifBody.
+    def enterIfBody(self, ctx:OpenSCADParser.IfBodyContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#ifBody.
+    def exitIfBody(self, ctx:OpenSCADParser.IfBodyContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCADParser#elseBody.
+    def enterElseBody(self, ctx:OpenSCADParser.ElseBodyContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCADParser#elseBody.
+    def exitElseBody(self, ctx:OpenSCADParser.ElseBodyContext):
         pass
 
 

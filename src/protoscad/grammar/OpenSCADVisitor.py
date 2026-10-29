@@ -1,4 +1,4 @@
-# Generated from C:/Users/arsbir/Documents/protoscad/src/protoscad/grammar/OpenSCAD.g4 by ANTLR 4.13.2
+# Generated from src/protoscad/grammar/OpenSCAD.g4 by ANTLR 4.13.2
 from antlr4 import *
 if "." in __name__:
     from .OpenSCADParser import OpenSCADParser
@@ -29,6 +29,11 @@ class OpenSCADVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by OpenSCADParser#ChainedIfCall.
+    def visitChainedIfCall(self, ctx:OpenSCADParser.ChainedIfCallContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by OpenSCADParser#ModuleCallWithBlock.
     def visitModuleCallWithBlock(self, ctx:OpenSCADParser.ModuleCallWithBlockContext):
         return self.visitChildren(ctx)
@@ -46,6 +51,21 @@ class OpenSCADVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by OpenSCADParser#TerminalLet.
     def visitTerminalLet(self, ctx:OpenSCADParser.TerminalLetContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#ifStatement.
+    def visitIfStatement(self, ctx:OpenSCADParser.IfStatementContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#ifBody.
+    def visitIfBody(self, ctx:OpenSCADParser.IfBodyContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCADParser#elseBody.
+    def visitElseBody(self, ctx:OpenSCADParser.ElseBodyContext):
         return self.visitChildren(ctx)
 
 

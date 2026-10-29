@@ -171,3 +171,27 @@ def test_named_arg_span_covers_name_and_value():
     center = call.named_args["center"]
     # The argument's span is the whole `center = true`, not just the value.
     assert center.span == SourceSpan(1, 5, 1, 18)
+
+
+def test_if_statement_span_covers_the_whole_construct():
+    scope = parse_scad("if (x) cube(1);\n")
+    if_call = scope.children[0]
+    assert isinstance(if_call, ModuleCallStatement)
+    assert if_call.module == "if"
+    assert span(if_call) == SourceSpan(1, 0, 1, 15)
+    condition = if_call.positional_args[0]
+    assert isinstance(condition, Variable)
+    assert condition.span == SourceSpan(1, 4, 1, 5)
+
+
+def test_if_else_span_extends_through_the_else_branch():
+    scope = parse_scad("if (x) cube(1);\nelse sphere(2);\n")
+    if_call = scope.children[0]
+    assert span(if_call) == SourceSpan(1, 0, 2, 15)
+    else_scope = if_call.children[1]
+    assert else_scope.module == "union"
+    # The branch scope's span is its body, like a module body's — the
+    # `else` keyword itself is not part of the scope.
+    assert span(else_scope) == SourceSpan(2, 5, 2, 15)
+    (else_call,) = else_scope.children
+    assert else_call.span == SourceSpan(2, 5, 2, 14)

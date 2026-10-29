@@ -13,11 +13,34 @@ statement   : moduleCallSeq
 // (another chained call), an explicit block, or nothing (terminal).
 moduleCallSeq     : moduleCall moduleCallSeq       # ChainedModuleCall
                   | letExpr moduleCallSeq          # ChainedLetCall
+                  | ifStatement                    # ChainedIfCall
                   | moduleCall block               # ModuleCallWithBlock
                   | letExpr block                  # LetWithBlock
                   | moduleCall ';'                 # TerminalModuleCall
                   | letExpr ';'                    # TerminalLet
                   ;
+
+// if/else statement, lowered to an `if` module call: the condition is the
+// call's argument and each branch body becomes one implicit-union child
+// scope, so the call has at most two children — the true branch, then the
+// false branch. The body is a block, a chained module-call sequence (the
+// brace-less form), or empty (`;`). A dangling `else` binds to the
+// innermost `if`: the inner if's optional-else decision sees the ELSE token
+// first and takes it, matching C and OpenSCAD. `else if` chains are a
+// plain `if` in the else position.
+ifStatement : IF '(' expr ')' ifBody (ELSE elseBody)? ;
+
+ifBody      : block
+            | moduleCallSeq
+            | ';'
+            ;
+
+// `ifStatement` first: both alternatives derive `else if ...` (ifBody can
+// reach an if through the chain rule), and the leading alternative wins the
+// tie — the direct route, not the round-trip through moduleCallSeq.
+elseBody    : ifStatement
+            | ifBody
+            ;
 
 moduleCall        : IDENT '(' argList? ')' ;
 
@@ -110,6 +133,8 @@ EQ          : '=' ;
 // equal length and ANTLR breaks ties by rule order, so the keyword wins.
 // Longer words like `letter` still lex as IDENT (longest-match wins).
 LET         : 'let' ;
+IF          : 'if' ;
+ELSE        : 'else' ;
 TRUE        : 'true' ;
 FALSE       : 'false' ;
 UNDEF       : 'undef' ;

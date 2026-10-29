@@ -1,5 +1,6 @@
 from typing import Protocol
 
+from protoscad.builtins.conditional import IfModule
 from protoscad.builtins.cube import CubeModule
 from protoscad.builtins.cylinder import CylinderModule
 from protoscad.builtins.difference import DifferenceModule
@@ -30,6 +31,7 @@ __all__ = [
     "DifferenceModule",
     "ForModule",
     "HullModule",
+    "IfModule",
     "IntersectionModule",
     "IntersectionForModule",
     "LetModule",
@@ -49,6 +51,7 @@ BUILTIN_MODULES: list[BuiltinModuleFactory] = [
     DifferenceModule,
     ForModule,
     HullModule,
+    IfModule,
     IntersectionModule,
     IntersectionForModule,
     LetModule,

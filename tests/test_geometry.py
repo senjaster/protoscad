@@ -136,9 +136,7 @@ def test_dollar_fn_stops_at_the_module_call_boundary():
 
 
 def test_dollar_fn_visible_through_let():
-    assert render("let($fn = 64) cylinder(h = 10, r = 1);").volume() == pytest.approx(
-        IDEAL_CYLINDER_10_1, rel=0.005
-    )
+    assert render("let($fn = 64) cylinder(h = 10, r = 1);").volume() == pytest.approx(IDEAL_CYLINDER_10_1, rel=0.005)
 
 
 def test_dollar_fn_on_a_builtin_reaches_its_children():
@@ -221,3 +219,44 @@ def test_tessellated_results_are_valid_manifolds(source):
     assert result.volume() > 0
     assert result.num_vert() > 0
     assert result.genus() is not None
+
+
+## =========================================================================
+# if / else selects whole geometries
+
+
+def test_if_true_condition_renders_the_then_branch():
+    assert render("if (true) cube(1);").volume() == pytest.approx(1.0)
+
+
+def test_if_false_condition_without_else_renders_nothing():
+    assert render("if (false) cube(1);") is None
+
+
+def test_else_branch_renders_when_the_condition_is_false():
+    assert render("if (false) cube(1); else sphere(1, $fn = 64);").volume() == pytest.approx(IDEAL_SPHERE_1, rel=0.01)
+
+
+def test_else_if_renders_exactly_one_branch():
+    source = """
+    size = 2;
+    if (size == 1) cube(1);
+    else if (size == 2) cube(2);
+    else sphere(1);
+    """
+    assert render(source).volume() == pytest.approx(8.0)
+
+
+def test_if_inside_for_unions_the_matching_iterations():
+    # i = 0, 2, 4 pass the condition: three unit cubes side by side.
+    assert render("for (i = [0:4]) if (i % 2 == 0) translate([i, 0, 0]) cube(1);").volume() == pytest.approx(3.0)
+
+
+def test_if_branch_scopes_flow_into_geometry():
+    # The branch's binding feeds the primitive, and the untaken branch's
+    # binding (which would raise if resolved) never evaluates.
+    source = """
+    if (true) { size = 2; cube(size); }
+    else { size = missing; cube(size); }
+    """
+    assert render(source).volume() == pytest.approx(8.0)

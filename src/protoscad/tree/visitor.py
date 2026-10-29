@@ -125,6 +125,47 @@ class AstOpenSCADVisitor(OpenSCADVisitor):
     def visitTerminalLet(self, ctx: OpenSCADParser.TerminalLetContext) -> ModuleCallStatement:
         return self.visit(ctx.letExpr())
 
+    # Visit a parse tree produced by OpenSCADParser#ChainedIfCall.
+    def visitChainedIfCall(self, ctx: OpenSCADParser.ChainedIfCallContext) -> ModuleCallStatement:
+        # `if` is a module call like any other; in a chain it is a child of
+        # the call to its left and terminates the chain.
+        return self.visit(ctx.ifStatement())
+
+    # Visit a parse tree produced by OpenSCADParser#ifStatement.
+    def visitIfStatement(self, ctx: OpenSCADParser.IfStatementContext) -> ModuleCallStatement:
+        node = ModuleCallStatement(
+            "if",
+            positional_args=[self.visit(ctx.expr())],
+            span=self._span(ctx),
+        )
+        node.children.append(self.visit(ctx.ifBody()))
+        if ctx.elseBody() is not None:
+            node.children.append(self.visit(ctx.elseBody()))
+        return node
+
+    # Visit a parse tree produced by OpenSCADParser#ifBody.
+    def visitIfBody(self, ctx: OpenSCADParser.IfBodyContext) -> ModuleCallStatement:
+        return self._branch_scope(ctx)
+
+    # Visit a parse tree produced by OpenSCADParser#elseBody.
+    def visitElseBody(self, ctx: OpenSCADParser.ElseBodyContext) -> ModuleCallStatement:
+        if ctx.ifStatement() is not None:
+            # `else if` chains: the nested if is the else scope's single child.
+            return ModuleCallStatement("union", span=self._span(ctx), children=[self.visit(ctx.ifStatement())])
+        return self.visit(ctx.ifBody())
+
+    def _branch_scope(self, ctx) -> ModuleCallStatement:
+        """One `if` branch as an implicit-union scope — the same wrapping a
+        module body gets — so each branch is a single child call no matter
+        how many statements the source branch holds."""
+        if ctx.block() is not None:
+            children = self.visit(ctx.block())
+        elif ctx.moduleCallSeq() is not None:
+            children = [self.visit(ctx.moduleCallSeq())]
+        else:
+            children = []  # the `;` empty branch
+        return ModuleCallStatement("union", span=self._span(ctx), children=children)
+
     # Visit a parse tree produced by OpenSCADParser#moduleCall.
     def visitModuleCall(self, ctx: OpenSCADParser.ModuleCallContext) -> ModuleCallStatement:
         node = ModuleCallStatement(ctx.IDENT().getText(), span=self._span(ctx))

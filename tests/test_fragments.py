@@ -4,8 +4,8 @@ import pytest
 
 from protoscad.builtins._fragments import (
     DEFAULT_FA,
-    DEFAULT_FS,
     DEFAULT_FN,
+    DEFAULT_FS,
     fragments_from_radius,
 )
 
