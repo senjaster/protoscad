@@ -36,6 +36,7 @@ class ErrorCode(StrEnum):
     INDEX_OUT_OF_RANGE = "index-out-of-range"
     UNKNOWN_FUNCTION = "unknown-function"
     INVALID_ARGUMENT = "invalid-argument"
+    ASSERTION_FAILED = "assertion-failed"
 
 
 @dataclass(frozen=True)

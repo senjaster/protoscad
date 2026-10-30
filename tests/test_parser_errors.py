@@ -39,3 +39,29 @@ def test_valid_source_parses_without_listener_output(capsys):
     # ANTLR's default stderr reporting is disabled: nothing is printed even
     # on success paths that previously exercised recovery.
     assert capsys.readouterr().err == ""
+
+
+def test_if_used_as_a_name_raises_syntax_error():
+    with pytest.raises(ProtoSCADError) as excinfo:
+        parse_scad("if = 3;")
+    assert excinfo.value.diagnostic.code == ErrorCode.SYNTAX
+
+
+def test_module_named_if_raises_syntax_error():
+    with pytest.raises(ProtoSCADError) as excinfo:
+        parse_scad("module if() cube(1);")
+    assert excinfo.value.diagnostic.code == ErrorCode.SYNTAX
+
+
+def test_echo_and_assert_are_not_keywords():
+    # Unlike `if`, `echo`/`assert` are ordinary identifiers: they name
+    # variables and modules, and their calls parse through the plain
+    # moduleCall rule.
+    for source in ("echo = 3;", "assert = 3;", "echo(1);", "assert(1);"):
+        parse_scad(source)
+
+
+def test_if_without_condition_raises_syntax_error():
+    with pytest.raises(ProtoSCADError) as excinfo:
+        parse_scad("if () cube(1);")
+    assert excinfo.value.diagnostic.code == ErrorCode.SYNTAX

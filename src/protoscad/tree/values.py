@@ -12,9 +12,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, TypeGuard
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 from protoscad.diagnostics import ErrorCode, ProtoSCADError
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class Type(StrEnum):
@@ -109,10 +112,11 @@ class RangeValue:
         return f"[{format_value(self.start)}:{format_value(self.step)}:{format_value(self.end)}]"
 
 
-def format_value(value: Any) -> str:
+def format_value(value: Any, quote_strings: bool = False) -> str:
     """Render a value the way ``echo``/``str()`` print it: integral numbers
     without a decimal part, booleans as ``true``/``false``, ``None`` as
-    ``undef``, vectors bracketed."""
+    ``undef``, vectors bracketed. ``quote_strings`` wraps strings in double
+    quotes, as ``echo`` shows them (``str()`` leaves them bare)."""
     if value is None:
         return "undef"
     if isinstance(value, bool):
@@ -122,12 +126,30 @@ def format_value(value: Any) -> str:
     if isinstance(value, int):
         return str(value)
     if isinstance(value, str):
-        return value
+        return f'"{value}"' if quote_strings else value
     if isinstance(value, RangeValue):
         return str(value)
     if isinstance(value, list):
-        return "[" + ", ".join(format_value(element) for element in value) + "]"
+        return "[" + ", ".join(format_value(element, quote_strings) for element in value) + "]"
     return str(value)
+
+
+def format_echo(arguments: Sequence[tuple[str | None, Any]]) -> str:
+    """The text an ``echo`` prints after ``ECHO: ``: values in source order,
+    named ones as ``name = value``, strings quoted as on OpenSCAD's console."""
+    parts = []
+    for name, value in arguments:
+        formatted = format_value(value, quote_strings=True)
+        parts.append(f"{name} = {formatted}" if name is not None else formatted)
+    return ", ".join(parts)
+
+
+def format_assertion_failure(message: Any) -> str:
+    """The error text of a failed ``assert``: the optional message, printed
+    the way ``echo`` shows values (OpenSCAD's ``toEchoString``)."""
+    if message is None:
+        return "Assertion failed"
+    return f"Assertion failed: {format_value(message, quote_strings=True)}"
 
 
 def _format_number(value: float) -> str:

@@ -1,9 +1,11 @@
 from typing import Protocol
 
+from protoscad.builtins.assertion import AssertModule
 from protoscad.builtins.conditional import IfModule
 from protoscad.builtins.cube import CubeModule
 from protoscad.builtins.cylinder import CylinderModule
 from protoscad.builtins.difference import DifferenceModule
+from protoscad.builtins.echo import EchoModule
 from protoscad.builtins.hull import HullModule
 from protoscad.builtins.intersection import IntersectionModule
 from protoscad.builtins.let import LetModule
@@ -26,9 +28,11 @@ class BuiltinModuleFactory(Protocol):
 
 
 __all__ = [
+    "AssertModule",
     "CubeModule",
     "CylinderModule",
     "DifferenceModule",
+    "EchoModule",
     "ForModule",
     "HullModule",
     "IfModule",
@@ -46,9 +50,11 @@ __all__ = [
 ]
 
 BUILTIN_MODULES: list[BuiltinModuleFactory] = [
+    AssertModule,
     CubeModule,
     CylinderModule,
     DifferenceModule,
+    EchoModule,
     ForModule,
     HullModule,
     IfModule,
