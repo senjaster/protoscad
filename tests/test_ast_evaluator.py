@@ -7,7 +7,7 @@ import pytest
 from antlr4 import CommonTokenStream, InputStream
 from manifold3d import Manifold
 
-from protoscad.builtins import IfModule, ForModule, IntersectionForModule, CubeModule, SphereModule, TranslateModule
+from protoscad.builtins import CubeModule, ForModule, IfModule, IntersectionForModule, SphereModule, TranslateModule
 from protoscad.diagnostics import ErrorCode, ProtoSCADError
 from protoscad.grammar.OpenSCADLexer import OpenSCADLexer
 from protoscad.grammar.OpenSCADParser import OpenSCADParser
@@ -752,6 +752,42 @@ def test_children_module_invocation_is_single_child():
         [echo],
     )
     assert echo.calls == [{"value": "bbb"}, {"value": "ccc"}]
+
+
+def test_children_module_without_argument_selects_all():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { children(); } Bar() { probe(10); probe(20); probe(30); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 10}, {"value": 20}, {"value": 30}]
+
+
+def test_children_module_with_vector_argument_selects_listed():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { children([0, 2]); } Bar() { probe(10); probe(20); probe(30); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 10}, {"value": 30}]
+
+
+def test_children_module_with_vector_argument_keeps_order_and_repeats():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { children([2, 0, 2]); } Bar() { probe(10); probe(20); probe(30); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 30}, {"value": 10}, {"value": 30}]
+
+
+def test_children_module_with_vector_argument_skips_out_of_range():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { children([0, 9]); } Bar() { probe(10); probe(20); probe(30); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 10}]
 
 
 ## =========================================================================

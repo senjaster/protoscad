@@ -52,8 +52,7 @@ def test_multmatrix_shears():
 
 def test_multmatrix_chains_with_other_transforms():
     result = evaluate_with_modules(
-        "multmatrix(m = [[1, 0, 0, 5], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) "
-        "cube(1);",
+        "multmatrix(m = [[1, 0, 0, 5], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) cube(1);",
         [MultmatrixModule(), CubeModule()],
     )
     assert result.volume() == pytest.approx(1.0)

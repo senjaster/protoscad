@@ -7,7 +7,7 @@ import pytest
 from antlr4 import CommonTokenStream, InputStream
 from manifold3d import Manifold
 
-from protoscad.builtins import CubeModule,TranslateModule, AssertModule, EchoModule
+from protoscad.builtins import AssertModule, CubeModule, EchoModule, TranslateModule
 from protoscad.diagnostics import ErrorCode, ProtoSCADError
 from protoscad.grammar.OpenSCADLexer import OpenSCADLexer
 from protoscad.grammar.OpenSCADParser import OpenSCADParser
