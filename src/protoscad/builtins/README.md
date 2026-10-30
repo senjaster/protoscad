@@ -17,7 +17,7 @@ Status legend: `[x]` implemented, `[ ]` not yet implemented.
 - [x] `translate([x, y, z])` — Moves child elements along the specified axes
 - [x] `rotate([a, b, c])` — Rotates child elements around the X, Y, and Z axes
 - [x] `scale([x, y, z])` — Scales child elements horizontally, vertically, or in depth
-- [ ] `resize([x, y, z], auto)` — Forces child elements to fit into exact specified dimensions
+- [x] `resize([x, y, z], auto)` — Forces child elements to fit into exact specified dimensions
 - [x] `mirror([x, y, z])` — Mirrors child elements across a plane perpendicular to the vector
 - [x] `multmatrix(m)` — Multiplies geometry by a custom 4x4 transformation matrix
 

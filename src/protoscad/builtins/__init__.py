@@ -14,6 +14,7 @@ from protoscad.builtins.primitives.cylinder import CylinderModule
 from protoscad.builtins.primitives.sphere import SphereModule
 from protoscad.builtins.transformations.mirror import MirrorModule
 from protoscad.builtins.transformations.multmatrix import MultmatrixModule
+from protoscad.builtins.transformations.resize import ResizeModule
 from protoscad.builtins.transformations.rotate import RotateModule
 from protoscad.builtins.transformations.scale import ScaleModule
 from protoscad.builtins.transformations.translate import TranslateModule
@@ -44,6 +45,7 @@ __all__ = [
     "MinkowskiModule",
     "MirrorModule",
     "MultmatrixModule",
+    "ResizeModule",
     "RotateModule",
     "ScaleModule",
     "SphereModule",
@@ -67,6 +69,7 @@ BUILTIN_MODULES: list[BuiltinModuleFactory] = [
     MinkowskiModule,
     MirrorModule,
     MultmatrixModule,
+    ResizeModule,
     RotateModule,
     ScaleModule,
     SphereModule,
