@@ -72,15 +72,26 @@ class Environment:
             resolver=lexical_parent._resolver,
         )
 
-    def extend_variables(self, variables: dict[str, Assignment] | None = None) -> Environment:
+    def extend(self) -> Environment:
         """
-        Creates a new nested scope with additional variables defined
+        Creates a new empty nested scope
         """
-        return Environment(variables=variables, parent=self, resolver=self._resolver)
+        return Environment(parent=self, resolver=self._resolver)
 
-    def extend_modules(self, modules: Mapping[str, ModuleDefinition] | None = None) -> Environment:
-        """Creates a new nested scope with additional modules defined"""
-        return Environment(modules=modules, parent=self, resolver=self._resolver)
+    def add_variable(self, name: str, assignment: Assignment) -> None:
+        """Register a variable binding in this scope, in place."""
+        self._variables[name] = assignment
+
+    def add_module(self, name: str, module: ModuleDefinition) -> None:
+        """Register a module in this scope, in place.
+
+        A module definition resolves its siblings (and its own name, for
+        recursion) through the scope that registers it — see
+        ``Invocation.build_child_scope``. Lookup happens lazily at call
+        time, so every body sees the complete set once registration
+        finishes.
+        """
+        self._modules[name] = module
 
     @property
     def resolver(self) -> BindingResolver:

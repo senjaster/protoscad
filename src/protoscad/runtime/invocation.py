@@ -73,7 +73,10 @@ class Invocation:
         }
         if not special_args:
             return self.env
-        return self.env.extend_variables(special_args)
+        call_env = self.env.extend()
+        for name, assignment in special_args.items():
+            call_env.add_variable(name, assignment)
+        return call_env
 
     @cached_property
     def arg_bindings(self) -> ArgBindings:
@@ -130,12 +133,18 @@ class Invocation:
             if isinstance(statement, ModuleDefinitionStatement):
                 definitions.append(statement)
 
-        scope_env = base.extend_variables(variables) if variables else base
-        if definitions:
-            modules = {
-                definition.name: ModuleClosure.from_definition(definition, scope_env) for definition in definitions
-            }
-            scope_env = scope_env.extend_modules(modules)
+        # A fresh scope built in place: variables land one by one, then the
+        # module closures — which bind this scope as their definition scope
+        # while the loop is still filling it. A body resolves its siblings
+        # (and itself, for recursion) through the scope, and every name is
+        # in place by the time any body runs. Freshness is structural: the
+        # builder owns the scope, so definitions added here are scoped to
+        # it and never leak into the parent.
+        scope_env = base.extend()
+        for name, assignment in variables.items():
+            scope_env.add_variable(name, assignment)
+        for definition in definitions:
+            scope_env.add_module(definition.name, ModuleClosure.from_definition(definition, scope_env))
         return scope_env
 
     @cached_property

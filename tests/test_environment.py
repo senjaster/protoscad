@@ -36,7 +36,8 @@ def test_child_scope_shadows_parent():
 
 def test_extend_inherits_variables_and_shadows():
     outer = make_env(x=1.0, y=2.0)
-    inner = outer.extend_variables({"y": Assignment("y", NumberLiteral(20.0))})
+    inner = outer.extend()
+    inner.add_variable("y", Assignment("y", NumberLiteral(20.0)))
     assert inner.lookup_variable("x") == 1.0
     assert inner.lookup_variable("y") == 20.0
     assert outer.lookup_variable("y") == 2.0
@@ -74,7 +75,7 @@ def test_dollar_variable_resolves_lexically_within_a_scope_tree():
     # Assignments reachable through plain lexical nesting are visible
     # without any module boundary involved.
     outer = make_env(**{"$fn": 50.0})
-    inner = outer.extend_variables()
+    inner = outer.extend()
     assert inner.lookup_variable("$fn") == 50.0
 
 
@@ -84,7 +85,7 @@ def test_dollar_variable_crosses_module_boundary_via_dynamic_link():
     definition_scope = make_env()
     call_scope = make_env(**{"$fn": 50.0})
     body = Environment.for_module_body({}, definition_scope, call_scope)
-    reader = body.extend_variables()
+    reader = body.extend()
     assert reader.lookup_variable("$fn") == 50.0
 
 

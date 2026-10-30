@@ -546,6 +546,27 @@ def test_user_module_body_uses_geometry_modules():
     assert result.volume() == pytest.approx(1.0)
 
 
+def test_user_module_body_calls_sibling_module():
+    # Modules defined in the same scope are mutually visible (OpenSCAD's
+    # file scope), so a module can dispatch to a helper defined next to it.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Helper() { probe(1); } module Main() { Helper(); probe(2); } Main();",
+        [probe],
+    )
+    assert probe.calls == [{"value": 1.0}, {"value": 2.0}]
+
+
+def test_user_module_recursion():
+    # A module body resolves its own name, so recursion works.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Down(n) { probe(n); if (n > 0) Down(n - 1); } Down(2);",
+        [IfModule(), probe],
+    )
+    assert probe.calls == [{"value": 2.0}, {"value": 1.0}, {"value": 0.0}]
+
+
 def test_user_module_default_resolves_in_definition_scope():
     # A default expression follows the definition-site binding (width = 5),
     # not the call-site shadow (width = 100 inside the union).
@@ -626,7 +647,8 @@ def test_module_can_inject_special_variable_into_children():
     # sees the injected `$`-variable, but nothing outside the module does.
     class FnInjector(BuiltinModule):
         def instantiate(self, ctx: Invocation) -> list[Manifold]:
-            env = ctx.child_env.extend_variables({"$fn": Assignment("$fn", NumberLiteral(8.0))})
+            env = ctx.child_env.extend()
+            env.add_variable("$fn", Assignment("$fn", NumberLiteral(8.0)))
             return [ctx.evaluate(statement, env) for statement in ctx.children]
 
         @property
@@ -788,6 +810,80 @@ def test_children_module_with_vector_argument_skips_out_of_range():
         [probe],
     )
     assert probe.calls == [{"value": 10}]
+
+
+## =========================================================================
+#  $children
+
+
+def test_children_count_reports_child_count_in_module_body():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { probe($children); } Bar() { probe(10); probe(20); probe(30); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 3}]
+
+
+def test_children_count_is_zero_without_children():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { probe($children); } Bar();",
+        [probe],
+    )
+    assert probe.calls == [{"value": 0}]
+
+
+def test_children_count_drives_children_loop_idiom():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { for (i = [0 : $children - 1]) children(i); } Bar() { probe(10); probe(20); probe(30); }",
+        [ForModule(), probe],
+    )
+    assert probe.calls == [{"value": 10}, {"value": 20}, {"value": 30}]
+
+
+def test_children_count_works_as_call_argument():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { children($children - 1); } Bar() { probe(10); probe(20); probe(30); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 30}]
+
+
+def test_children_count_visible_through_builtin_scope():
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Bar() { union() { probe($children); } } Bar() { probe(10); probe(20); probe(30); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 3}]
+
+
+def test_inner_module_call_shadows_children_count():
+    # `$children` is per module instantiation: Inner's body sees its own
+    # call's count (0), not Outer's — even though Inner is called from
+    # Outer's body with Outer's `$children = 1` in scope.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Inner() { probe($children); } module Outer() { probe($children); Inner(); } Outer() { probe(10); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 1}, {"value": 0}]
+
+
+def test_children_count_ignores_bindings_and_definitions():
+    # Only module calls are children; a variable binding or a nested module
+    # definition in the child block does not raise the count.
+    probe = RecordingModule("probe")
+    evaluate_with_modules(
+        "module Inner() { probe(99); }"
+        " module Bar() { probe($children); }"
+        " Bar() { x = 5; module Inner2() { probe(98); } probe(10); }",
+        [probe],
+    )
+    assert probe.calls == [{"value": 1}]
 
 
 ## =========================================================================

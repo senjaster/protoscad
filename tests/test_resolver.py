@@ -37,7 +37,10 @@ def make_scope(parent: Environment, *definitions: tuple[str, Expression]) -> Env
     policy and return the scope environment."""
     bindings = [VariableBindingStatement(name=name, value=value) for name, value in definitions]
     variables = DeclarativeResolver().resolve(parent, bindings)
-    return parent.extend_variables(variables)
+    scope = parent.extend()
+    for name, assignment in variables.items():
+        scope.add_variable(name, assignment)
+    return scope
 
 
 GUARDED_SCOPE = (

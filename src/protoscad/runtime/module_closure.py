@@ -42,6 +42,11 @@ class ModuleClosure[Geometry](ModuleDefinition):
         # Re-wrap the evaluated values as constants so the body resolves
         # parameters without re-running caller-scoped expressions.
         parameters = {name: Assignment(name, Literal(value)) for name, value in values.items()}
+        # `$children` — the count of children this call carries (0 for a bare
+        # call). Bound in the body scope so the body and `children()` index
+        # expressions see it while arguments still resolve the caller's `$`
+        # bindings; a nested module call shadows it with its own count.
+        parameters["$children"] = Assignment("$children", Literal(float(len(ctx.children))))
         modules = {"children": ChildrenModule(ctx.children)}
         body_env = Environment.for_module_body(
             variables=parameters,

@@ -175,5 +175,8 @@ class OpenScadResolver:
         values: dict[str, Any] = {}
         for name in order:
             view = {dep: Assignment(dep, Literal(values[dep])) for dep in deps[name]}
-            values[name] = final_expr[name].evaluate(parent.extend_variables(view))
+            scope = parent.extend()
+            for dep, assignment in view.items():
+                scope.add_variable(dep, assignment)
+            values[name] = final_expr[name].evaluate(scope)
         return values

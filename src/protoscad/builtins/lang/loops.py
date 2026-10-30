@@ -34,7 +34,10 @@ class LoopModule(BuiltinModule):
     def instantiate(self, ctx: Invocation) -> Manifold | None:
         geometries: list[Manifold] = []
         for bindings in self._iterations(ctx):
-            env = ctx.build_child_scope(ctx.call_env.extend_variables(bindings))
+            iteration_env = ctx.call_env.extend()
+            for name, assignment in bindings.items():
+                iteration_env.add_variable(name, assignment)
+            env = ctx.build_child_scope(iteration_env)
             geometries.extend(ctx.evaluate_children(env))
         return self._combine(geometries)
 

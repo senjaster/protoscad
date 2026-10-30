@@ -576,7 +576,9 @@ class LetExpr(Expression):
     body: Expression
 
     def evaluate(self, env: Environment) -> Any:
-        scope = env.extend_variables({binding.name: binding for binding in self.bindings})
+        scope = env.extend()
+        for binding in self.bindings:
+            scope.add_variable(binding.name, binding)
         return self.body.evaluate(scope)
 
     @property
