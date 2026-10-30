@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from protoscad.builtins.cube import CubeModule
+from protoscad.builtins import CubeModule
 from protoscad.diagnostics import ErrorCode, ProtoSCADError, SourceSpan
 from protoscad.parser import parse_scad
 from protoscad.runtime.evaluator import evaluate

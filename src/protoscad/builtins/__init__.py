@@ -1,23 +1,23 @@
 from typing import Protocol
 
-from protoscad.builtins.assertion import AssertModule
-from protoscad.builtins.conditional import IfModule
-from protoscad.builtins.cube import CubeModule
-from protoscad.builtins.cylinder import CylinderModule
-from protoscad.builtins.difference import DifferenceModule
-from protoscad.builtins.echo import EchoModule
-from protoscad.builtins.hull import HullModule
-from protoscad.builtins.intersection import IntersectionModule
-from protoscad.builtins.let import LetModule
-from protoscad.builtins.loops import ForModule, IntersectionForModule
-from protoscad.builtins.metaballs import MetaballsModule
-from protoscad.builtins.minkowski import MinkowskiModule
-from protoscad.builtins.mirror import MirrorModule
-from protoscad.builtins.rotate import RotateModule
-from protoscad.builtins.scale import ScaleModule
-from protoscad.builtins.sphere import SphereModule
-from protoscad.builtins.translate import TranslateModule
-from protoscad.builtins.union import UnionModule
+from protoscad.builtins.csg.difference import DifferenceModule
+from protoscad.builtins.csg.hull import HullModule
+from protoscad.builtins.csg.intersection import IntersectionModule
+from protoscad.builtins.csg.minkowski import MinkowskiModule
+from protoscad.builtins.csg.union import UnionModule
+from protoscad.builtins.ext.metaballs import MetaballsModule
+from protoscad.builtins.lang.conditional import IfModule
+from protoscad.builtins.lang.let import LetModule
+from protoscad.builtins.lang.loops import ForModule, IntersectionForModule
+from protoscad.builtins.primitives.cube import CubeModule
+from protoscad.builtins.primitives.cylinder import CylinderModule
+from protoscad.builtins.primitives.sphere import SphereModule
+from protoscad.builtins.transformations.mirror import MirrorModule
+from protoscad.builtins.transformations.rotate import RotateModule
+from protoscad.builtins.transformations.scale import ScaleModule
+from protoscad.builtins.transformations.translate import TranslateModule
+from protoscad.builtins.utility.assertion import AssertModule
+from protoscad.builtins.utility.echo import EchoModule
 from protoscad.runtime.module_definition import BuiltinModule
 
 
