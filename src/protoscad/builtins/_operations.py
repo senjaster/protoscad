@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from manifold3d import CrossSection, Manifold, OpType
 
 from protoscad.diagnostics import GeometryError
+
+if TYPE_CHECKING:
+    from protoscad.runtime.invocation import Invocation
 
 #: What a module's ``instantiate`` hands to its parent: a solid (``Manifold``)
 #: or a planar region (``CrossSection``). 2D geometry flows through the same
@@ -41,6 +45,27 @@ def boolean_geometries(geometries: Sequence[Geometry], op: OpType) -> Geometry |
     if len(geometries) == 1:
         return geometries[0]
     return Manifold.batch_boolean(list(geometries), op)
+
+
+def child_profile(ctx: Invocation, module_name: str) -> CrossSection | None:
+    """The unioned 2D children of a call — or ``None`` when it has none.
+
+    What every consumer of 2D geometry (the extrusions, ``offset``) reads:
+    the children union in the plane first, and a 3D child raises
+    ``GeometryError`` (located at the call by ``Invocation``) where OpenSCAD
+    quietly ignores it — dropping geometry silently is what this engine
+    refuses to do.
+    """
+    sections: list[CrossSection] = []
+    for child in ctx.evaluate_children():
+        if not isinstance(child, CrossSection):
+            raise GeometryError(f"{module_name}() takes 2D children")
+        sections.append(child)
+    if not sections:
+        return None
+    if len(sections) == 1:
+        return sections[0]
+    return CrossSection.batch_boolean(sections, OpType.Add)
 
 
 def xy_pair(v: float | list[float]) -> tuple[float, float]:

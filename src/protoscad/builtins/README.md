@@ -7,9 +7,9 @@ Status legend: `[x]` implemented, `[ ]` not yet implemented.
 - [x] `cube(size, center)` — Generates a solid 3D cube or rectangular cuboid
 - [x] `sphere(r|d)` — Generates a solid 3D sphere
 - [x] `cylinder(h, r|r1|r2, d|d1|d2, center)` — Generates a 3D cylinder or cone
-- [ ] `circle(r|d)` — Generates a 2D circle with a given radius or diameter
-- [ ] `square(size, center)` — Generates a 2D square or rectangle
-- [ ] `polygon(points, paths)` — Creates a custom 2D shape from a list of coordinates
+- [x] `circle(r|d)` — Generates a 2D circle with a given radius or diameter
+- [x] `square(size, center)` — Generates a 2D square or rectangle
+- [x] `polygon(points, paths)` — Creates a custom 2D shape from a list of coordinates
 - [ ] `polyhedron(points, faces, convexity)` — Creates a custom 3D shape from points and faces
 
 ## Transformations
@@ -32,10 +32,10 @@ Status legend: `[x]` implemented, `[ ]` not yet implemented.
 ## 2D-related
 
 - [ ] `text(text, size, font, halign, valign, spacing, direction, language, script)` — Renders text into a 2D geometric shape
-- [ ] `offset(r|delta, chamfer)` — Expands or shrinks the outlines of 2D shapes
-- [ ] `linear_extrude(height, twist, scale, convexity, slices)` — Pulls a 2D shape straight up into 3D space
-- [ ] `rotate_extrude(angle, convexity)` — Revolves a 2D shape around the Y-axis to create a 3D object
-- [ ] `projection(cut)` — Flattens a 3D object into a 2D graphic layout
+- [x] `offset(r|delta, chamfer)` — Expands or shrinks the outlines of 2D shapes
+- [x] `linear_extrude(height, twist, scale, convexity, slices)` — Pulls a 2D shape straight up into 3D space
+- [x] `rotate_extrude(angle, convexity)` — Revolves a 2D shape around the Y-axis to create a 3D object
+- [x] `projection(cut)` — Flattens a 3D object into a 2D graphic layout
 
 ## LanguageGood
 

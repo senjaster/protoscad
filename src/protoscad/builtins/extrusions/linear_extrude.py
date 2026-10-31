@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from manifold3d import CrossSection, Manifold, OpType
+from manifold3d import CrossSection, Manifold
 
 from protoscad.builtins._fragments import dollar_tessellation, extrusion_slices
-from protoscad.diagnostics import GeometryError
+from protoscad.builtins._operations import child_profile
 from protoscad.runtime.invocation import Invocation
 from protoscad.runtime.module_definition import BuiltinModule
 from protoscad.tree.expression import Assignment, NumberLiteral
@@ -23,7 +23,7 @@ class LinearExtrudeModule(BuiltinModule):
     """
 
     def instantiate(self, ctx: Invocation) -> Manifold | None:
-        section = self._child_section(ctx)
+        section = child_profile(ctx, "linear_extrude")
         if section is None:
             return None
 
@@ -57,25 +57,6 @@ class LinearExtrudeModule(BuiltinModule):
         if bool(ctx.arg_values["center"]):
             solid = solid.translate((0.0, 0.0, -height / 2))
         return solid
-
-    def _child_section(self, ctx: Invocation) -> CrossSection | None:
-        """The unioned 2D children of the call, or ``None`` when it has none.
-
-        A 3D child raises ``GeometryError`` — located at this call by
-        ``Invocation`` — where OpenSCAD quietly ignores it: dropping
-        geometry silently is exactly what this engine refuses to do
-        elsewhere (see docs/MISSING_FEATURES.md).
-        """
-        sections: list[CrossSection] = []
-        for child in ctx.evaluate_children():
-            if not isinstance(child, CrossSection):
-                raise GeometryError("linear_extrude() extrudes 2D children")
-            sections.append(child)
-        if not sections:
-            return None
-        if len(sections) == 1:
-            return sections[0]
-        return CrossSection.batch_boolean(sections, OpType.Add)
 
     @property
     def name(self) -> str:

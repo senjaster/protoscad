@@ -7,11 +7,16 @@ from protoscad.builtins.csg.minkowski import MinkowskiModule
 from protoscad.builtins.csg.union import UnionModule
 from protoscad.builtins.ext.metaballs import MetaballsModule
 from protoscad.builtins.extrusions.linear_extrude import LinearExtrudeModule
+from protoscad.builtins.extrusions.rotate_extrude import RotateExtrudeModule
 from protoscad.builtins.lang.conditional import IfModule
 from protoscad.builtins.lang.let import LetModule
 from protoscad.builtins.lang.loops import ForModule, IntersectionForModule
+from protoscad.builtins.planar.offset import OffsetModule
+from protoscad.builtins.planar.projection import ProjectionModule
+from protoscad.builtins.primitives.circle import CircleModule
 from protoscad.builtins.primitives.cube import CubeModule
 from protoscad.builtins.primitives.cylinder import CylinderModule
+from protoscad.builtins.primitives.polygon import PolygonModule
 from protoscad.builtins.primitives.sphere import SphereModule
 from protoscad.builtins.primitives.square import SquareModule
 from protoscad.builtins.transformations.mirror import MirrorModule
@@ -33,6 +38,7 @@ class BuiltinModuleFactory(Protocol):
 
 __all__ = [
     "AssertModule",
+    "CircleModule",
     "CubeModule",
     "CylinderModule",
     "DifferenceModule",
@@ -48,7 +54,11 @@ __all__ = [
     "MinkowskiModule",
     "MirrorModule",
     "MultmatrixModule",
+    "OffsetModule",
+    "PolygonModule",
+    "ProjectionModule",
     "ResizeModule",
+    "RotateExtrudeModule",
     "RotateModule",
     "ScaleModule",
     "SphereModule",
@@ -59,6 +69,7 @@ __all__ = [
 
 BUILTIN_MODULES: list[BuiltinModuleFactory] = [
     AssertModule,
+    CircleModule,
     CubeModule,
     CylinderModule,
     DifferenceModule,
@@ -74,7 +85,11 @@ BUILTIN_MODULES: list[BuiltinModuleFactory] = [
     MinkowskiModule,
     MirrorModule,
     MultmatrixModule,
+    OffsetModule,
+    PolygonModule,
+    ProjectionModule,
     ResizeModule,
+    RotateExtrudeModule,
     RotateModule,
     ScaleModule,
     SphereModule,
