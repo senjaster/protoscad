@@ -26,3 +26,15 @@ class ProtoSCADError(Exception):
     ) -> None:
         self.diagnostic = Diagnostic(code=code, message=message, span=span, notes=tuple(notes))
         super().__init__(message)
+
+
+class GeometryError(Exception):
+    """A geometry-pipeline failure that has no location of its own.
+
+    Raised by builtin helpers (``builtins._operations``) — code that knows
+    *what* went wrong but not *where*: it works on already-evaluated
+    geometry, and the source location of the responsible call belongs to
+    the evaluator's world. ``Invocation`` catches it at the module call
+    being instantiated — the innermost call whose body raised — and
+    re-raises it as a located ``ProtoSCADError`` with code ``type-error``.
+    """

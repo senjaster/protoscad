@@ -37,6 +37,7 @@ class ErrorCode(StrEnum):
     UNKNOWN_FUNCTION = "unknown-function"
     INVALID_ARGUMENT = "invalid-argument"
     ASSERTION_FAILED = "assertion-failed"
+    EXPORT_FORMAT_MISMATCH = "export-format-mismatch"
 
 
 @dataclass(frozen=True)

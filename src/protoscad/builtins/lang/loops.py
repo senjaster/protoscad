@@ -5,9 +5,9 @@ from collections.abc import Iterator, Mapping
 from itertools import product
 from typing import Any
 
-from manifold3d import Manifold, OpType
+from manifold3d import OpType
 
-from protoscad.builtins._operations import boolean_geometries, union_geometries
+from protoscad.builtins._operations import Geometry, boolean_geometries, union_geometries
 from protoscad.diagnostics import ErrorCode, ProtoSCADError
 from protoscad.runtime.invocation import Invocation
 from protoscad.runtime.module_definition import ArgBindings, BuiltinModule
@@ -31,8 +31,8 @@ class LoopModule(BuiltinModule):
     a body scope up, so binding errors surface as in any other scope.
     """
 
-    def instantiate(self, ctx: Invocation) -> Manifold | None:
-        geometries: list[Manifold] = []
+    def instantiate(self, ctx: Invocation) -> Geometry | None:
+        geometries: list[Geometry] = []
         for bindings in self._iterations(ctx):
             iteration_env = ctx.call_env.extend()
             for name, assignment in bindings.items():
@@ -42,7 +42,7 @@ class LoopModule(BuiltinModule):
         return self._combine(geometries)
 
     @abstractmethod
-    def _combine(self, geometries: list[Manifold]) -> Manifold | None:
+    def _combine(self, geometries: list[Geometry]) -> Geometry | None:
         """Fold one geometry per iteration into the module's result."""
         raise NotImplementedError
 
@@ -93,7 +93,7 @@ class LoopModule(BuiltinModule):
 class ForModule(LoopModule):
     """``for(i = [0:9]) { ... }`` — the body unioned over all iterations."""
 
-    def _combine(self, geometries: list[Manifold]) -> Manifold | None:
+    def _combine(self, geometries: list[Geometry]) -> Geometry | None:
         return union_geometries(geometries)
 
     @property
@@ -105,7 +105,7 @@ class IntersectionForModule(LoopModule):
     """``intersection_for(i = [0:9]) { ... }`` — like ``for``, but the
     iterations are intersected instead of unioned."""
 
-    def _combine(self, geometries: list[Manifold]) -> Manifold | None:
+    def _combine(self, geometries: list[Geometry]) -> Geometry | None:
         return boolean_geometries(geometries, OpType.Intersect)
 
     @property

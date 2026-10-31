@@ -6,12 +6,14 @@ from protoscad.builtins.csg.intersection import IntersectionModule
 from protoscad.builtins.csg.minkowski import MinkowskiModule
 from protoscad.builtins.csg.union import UnionModule
 from protoscad.builtins.ext.metaballs import MetaballsModule
+from protoscad.builtins.extrusions.linear_extrude import LinearExtrudeModule
 from protoscad.builtins.lang.conditional import IfModule
 from protoscad.builtins.lang.let import LetModule
 from protoscad.builtins.lang.loops import ForModule, IntersectionForModule
 from protoscad.builtins.primitives.cube import CubeModule
 from protoscad.builtins.primitives.cylinder import CylinderModule
 from protoscad.builtins.primitives.sphere import SphereModule
+from protoscad.builtins.primitives.square import SquareModule
 from protoscad.builtins.transformations.mirror import MirrorModule
 from protoscad.builtins.transformations.multmatrix import MultmatrixModule
 from protoscad.builtins.transformations.resize import ResizeModule
@@ -41,6 +43,7 @@ __all__ = [
     "IntersectionModule",
     "IntersectionForModule",
     "LetModule",
+    "LinearExtrudeModule",
     "MetaballsModule",
     "MinkowskiModule",
     "MirrorModule",
@@ -49,6 +52,7 @@ __all__ = [
     "RotateModule",
     "ScaleModule",
     "SphereModule",
+    "SquareModule",
     "TranslateModule",
     "UnionModule",
 ]
@@ -65,6 +69,7 @@ BUILTIN_MODULES: list[BuiltinModuleFactory] = [
     IntersectionModule,
     IntersectionForModule,
     LetModule,
+    LinearExtrudeModule,
     MetaballsModule,
     MinkowskiModule,
     MirrorModule,
@@ -73,6 +78,7 @@ BUILTIN_MODULES: list[BuiltinModuleFactory] = [
     RotateModule,
     ScaleModule,
     SphereModule,
+    SquareModule,
     TranslateModule,
     UnionModule,
 ]

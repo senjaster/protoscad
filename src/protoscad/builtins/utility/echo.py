@@ -3,9 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
-from manifold3d import Manifold
-
-from protoscad.builtins._operations import union_geometries
+from protoscad.builtins._operations import Geometry, union_geometries
 from protoscad.runtime.invocation import Invocation
 from protoscad.runtime.module_definition import ArgBindings, BuiltinModule
 from protoscad.tree.expression import Assignment
@@ -36,7 +34,7 @@ class EchoModule(BuiltinModule):
     union — so an ``echo`` can wrap any module call.
     """
 
-    def instantiate(self, ctx: Invocation) -> Manifold | None:
+    def instantiate(self, ctx: Invocation) -> Geometry | None:
         print("ECHO: " + format_echo(echo_arguments(ctx)))
         return union_geometries(ctx.evaluate_children())
 

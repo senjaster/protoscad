@@ -2,20 +2,23 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from manifold3d import Manifold
+from manifold3d import CrossSection
 
-from protoscad.builtins._operations import union_geometries
+from protoscad.builtins._operations import Geometry, union_geometries, xy_pair
 from protoscad.runtime.invocation import Invocation
 from protoscad.runtime.module_definition import BuiltinModule
 from protoscad.tree.expression import Assignment
 
 
 class TranslateModule(BuiltinModule):
-    def instantiate(self, ctx: Invocation) -> Manifold | None:
+    def instantiate(self, ctx: Invocation) -> Geometry | None:
         child = union_geometries(ctx.evaluate_children())
         if child is None:
             return None
-        return child.translate(ctx.arg_values["v"])
+        v = ctx.arg_values["v"]
+        if isinstance(child, CrossSection):
+            return child.translate(xy_pair(v))
+        return child.translate(v)
 
     @property
     def name(self) -> str:

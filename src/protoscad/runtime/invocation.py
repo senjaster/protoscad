@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from protoscad.diagnostics import ErrorCode, ProtoSCADError
+from protoscad.diagnostics import ErrorCode, GeometryError, ProtoSCADError
 from protoscad.runtime.environment import Environment
 from protoscad.runtime.module_closure import ModuleClosure
 from protoscad.tree.expression import Assignment, Undefined
@@ -49,7 +49,12 @@ class Invocation:
         # parameter, arity) surface on every call, even if the module
         # never reads them.
         _ = self.arg_bindings
-        return self.module.instantiate(self)
+        try:
+            return self.module.instantiate(self)
+        except GeometryError as error:
+            # The geometry helpers report what went wrong, never where —
+            # this call is the where.
+            raise ProtoSCADError(str(error), code=ErrorCode.TYPE_ERROR, span=self.node.span) from error
 
     @cached_property
     def module(self) -> ModuleDefinition:

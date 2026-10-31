@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from manifold3d import Manifold
-
-from protoscad.builtins._operations import union_geometries
+from protoscad.builtins._operations import Geometry, union_geometries
 from protoscad.diagnostics import ErrorCode, ProtoSCADError
 from protoscad.runtime.invocation import Invocation
 from protoscad.runtime.module_definition import BuiltinModule
@@ -21,7 +19,7 @@ class AssertModule(BuiltinModule):
     assert's own span, so the source snippet shows the checked condition.
     """
 
-    def instantiate(self, ctx: Invocation) -> Manifold | None:
+    def instantiate(self, ctx: Invocation) -> Geometry | None:
         values = ctx.arg_values
         if not truthy(values["condition"]):
             raise ProtoSCADError(
